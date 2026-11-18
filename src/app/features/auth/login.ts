@@ -9,8 +9,9 @@ import { UI } from '../../shared/ui';
   template: `
     <div class="wrap">
       <form class="card box" (ngSubmit)="submit()">
-        <h1>Chemmanoor Metals</h1>
-        <p class="sub">{{ mode() === 'in' ? 'Sign in to the ERP' : 'Request access' }}</p>
+        <img class="logo" src="logo.jpg" width="382" height="70" alt="Chemmanoor Metals — trusted protection" />
+        <div class="eyebrow"><span class="line"></span>{{ mode() === 'in' ? 'Staff sign in' : 'Request access' }}</div>
+        <h1>{{ mode() === 'in' ? 'Welcome back.' : 'Join the team workspace.' }}</h1>
 
         @if (auth.signedIn() && !auth.active()) {
           <p>
@@ -52,28 +53,66 @@ import { UI } from '../../shared/ui';
           </button>
         }
       </form>
+      <p class="tagline">Trusted protection. Since 1975.</p>
     </div>
   `,
   styles: `
     .wrap {
       min-height: 100vh;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
       padding: 16px;
+      box-sizing: border-box;
+      border-top: 35px solid var(--brand-ink);
+      background: var(--brand-soft);
     }
     .box {
-      width: min(380px, 100%);
+      width: min(420px, 100%);
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       gap: 4px;
+      padding: 32px;
+      margin: 0;
+    }
+    .logo {
+      width: 225px;
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 28px;
+    }
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .line {
+      width: 30px;
+      height: 2px;
+      background: var(--brand-orange);
     }
     h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 500;
+      margin: 10px 0 22px;
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1.12;
+      letter-spacing: -0.045em;
     }
     p {
       margin: 0 0 12px;
+    }
+    .box button[type='submit'] {
+      min-height: 48px;
+      margin-bottom: 4px;
+    }
+    .tagline {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.025em;
+      color: #686c63;
     }
   `,
 })

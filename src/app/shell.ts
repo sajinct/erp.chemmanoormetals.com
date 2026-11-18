@@ -1,15 +1,16 @@
 import { Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Auth } from './core/auth';
 import { ROLES } from './core/models';
 import { LabelPipe } from './shared/ui';
 
-/** Side navigation and top bar around every signed-in page. */
+/**
+ * Frame around every signed-in page, styled after chemmanoormetals.com:
+ * dark strip on top, the logo on white, orange marker on the current section.
+ */
 @Component({
   selector: 'app-shell',
   imports: [
@@ -17,57 +18,52 @@ import { LabelPipe } from './shared/ui';
     RouterLink,
     RouterLinkActive,
     MatSidenavModule,
-    MatToolbarModule,
-    MatListModule,
     MatIconModule,
     MatButtonModule,
     LabelPipe,
   ],
   template: `
     <mat-sidenav-container class="container">
-      <mat-sidenav
-        #nav
-        [mode]="narrow() ? 'over' : 'side'"
-        [opened]="!narrow()"
-        class="nav"
-      >
-        <div class="brand">
-          <strong>Chemmanoor Metals</strong>
-          <span class="sub">ERP</span>
-        </div>
-        <mat-nav-list>
+      <mat-sidenav #nav [mode]="narrow() ? 'over' : 'side'" [opened]="!narrow()" class="nav">
+        <a class="brand" routerLink="/" aria-label="Chemmanoor Metals ERP home">
+          <img src="logo.jpg" width="382" height="70" alt="Chemmanoor Metals — trusted protection" />
+        </a>
+        <div class="eyebrow section">ERP</div>
+        <nav aria-label="Main navigation">
           @for (item of items; track item.path) {
             @if (!item.admin || auth.can('admin')) {
               <a
-                mat-list-item
+                class="item"
                 [routerLink]="item.path"
                 routerLinkActive="active"
                 [routerLinkActiveOptions]="{ exact: item.path === '/' }"
                 (click)="narrow() && nav.close()"
               >
-                <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-                <span matListItemTitle>{{ item.label }}</span>
+                <mat-icon>{{ item.icon }}</mat-icon>
+                <span>{{ item.label }}</span>
               </a>
             }
           }
-        </mat-nav-list>
+        </nav>
+        <div class="foot">Trusted protection. Since 1975.</div>
       </mat-sidenav>
       <mat-sidenav-content>
-        <mat-toolbar class="bar">
+        <header class="bar">
           @if (narrow()) {
             <button mat-icon-button (click)="nav.toggle()" aria-label="Menu">
               <mat-icon>menu</mat-icon>
             </button>
+            <img class="bar-logo" src="logo.jpg" width="382" height="70" alt="Chemmanoor Metals" />
           }
           <span class="spacer"></span>
           <span class="who">
-            {{ auth.profile()?.full_name }}
-            <span class="sub">{{ auth.role() | label: roles }}</span>
+            <strong>{{ auth.profile()?.full_name }}</strong>
+            <span>{{ auth.role() | label: roles }}</span>
           </span>
           <button mat-icon-button (click)="signOut()" aria-label="Sign out" title="Sign out">
             <mat-icon>logout</mat-icon>
           </button>
-        </mat-toolbar>
+        </header>
         <router-outlet />
       </mat-sidenav-content>
     </mat-sidenav-container>
@@ -75,32 +71,101 @@ import { LabelPipe } from './shared/ui';
   styles: `
     .container {
       height: 100vh;
+      background: var(--brand-soft);
     }
     .nav {
-      width: 230px;
-    }
-    .brand {
-      padding: 20px 16px 12px;
+      width: 248px;
+      background: #fff;
+      border-right: 1px solid var(--brand-line);
       display: flex;
       flex-direction: column;
+    }
+    .brand {
+      display: block;
+      padding: 22px 22px 18px;
+      border-bottom: 1px solid var(--brand-line);
+    }
+    .brand img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .section {
+      padding: 18px 24px 8px;
+      color: #686c63;
+    }
+    .item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 24px;
+      color: var(--brand-ink);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+    }
+    .item mat-icon {
+      color: #686c63;
+    }
+    .item:hover {
+      background: var(--brand-soft);
+      text-decoration: none;
+    }
+    .item.active {
+      background: var(--brand-soft);
+      border-left-color: var(--brand-orange);
+    }
+    .item.active mat-icon {
+      color: var(--brand-ink);
+    }
+    .foot {
+      margin-top: auto;
+      padding: 18px 24px;
+      font-size: 12px;
+      color: #686c63;
+      border-top: 1px solid var(--brand-line);
     }
     .bar {
       position: sticky;
       top: 0;
       z-index: 2;
-      background: var(--mat-sys-surface);
-      border-bottom: 1px solid var(--mat-sys-outline-variant);
-      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 52px;
+      padding: 0 12px 0 20px;
+      background: var(--brand-ink);
+      color: #f1f2ed;
+      font-size: 13px;
+      --mat-icon-button-icon-color: #f1f2ed;
+      --mat-icon-button-state-layer-color: #f1f2ed;
+    }
+    .bar button {
+      color: #f1f2ed;
+    }
+    .bar-logo {
+      height: 30px;
+      width: auto;
+      background: #fff;
+      padding: 4px 8px;
+      border-radius: 2px;
     }
     .who {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      line-height: 1.2;
-      margin-right: 8px;
+      line-height: 1.25;
+      margin-right: 4px;
     }
-    .active {
-      background: var(--mat-sys-secondary-container);
+    .who strong {
+      font-weight: 600;
+    }
+    .who span {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #b8beb3;
     }
   `,
 })
