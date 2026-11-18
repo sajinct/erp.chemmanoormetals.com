@@ -2,10 +2,12 @@ import { Component, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Auth } from '../../core/auth';
 import { UI } from '../../shared/ui';
+import { AppTools } from '../../shared/app-tools';
+import { APP_VERSION } from '../../core/version';
 
 @Component({
   selector: 'app-login',
-  imports: [UI],
+  imports: [UI, AppTools],
   template: `
     <div class="wrap">
       <aside class="intro">
@@ -37,6 +39,7 @@ import { UI } from '../../shared/ui';
         </div>
       </aside>
       <section class="login-panel">
+        <app-tools class="login-tools" />
         <form class="box" #form="ngForm" (ngSubmit)="form.valid && submit()">
           <img
             class="logo"
@@ -139,7 +142,7 @@ import { UI } from '../../shared/ui';
             >
           </div>
         </form>
-        <p class="tagline">Chemmanoor Metals · Team workspace</p>
+        <p class="tagline">Chemmanoor Metals · ERP v{{ version }}</p>
       </section>
     </div>
   `,
@@ -148,7 +151,7 @@ import { UI } from '../../shared/ui';
       min-height: 100dvh;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      background: #fff;
+      background: var(--surface);
     }
     .box {
       width: min(400px, 100%);
@@ -193,10 +196,10 @@ import { UI } from '../../shared/ui';
       margin: 0;
       font-size: 12px;
       letter-spacing: 0.025em;
-      color: #686c63;
+      color: var(--text-muted);
     }
     .intro {
-      background: #f2f4f7;
+      background: var(--brand-soft);
       padding: 40px 48px;
       display: flex;
       flex-direction: column;
@@ -217,7 +220,7 @@ import { UI } from '../../shared/ui';
     }
     .intro-brand {
       align-self: flex-start;
-      background: #fff;
+      background: var(--surface);
       border-radius: 8px;
       padding: 12px 16px;
     }
@@ -233,7 +236,7 @@ import { UI } from '../../shared/ui';
       z-index: 1;
     }
     .intro-content .eyebrow {
-      color: #a84415;
+      color: var(--accent-ink);
     }
     .intro h2 {
       font-size: clamp(30px, 3.2vw, 54px);
@@ -244,7 +247,7 @@ import { UI } from '../../shared/ui';
     }
     .intro-content > p {
       max-width: 340px;
-      color: #667085;
+      color: var(--text-muted);
       font-size: 14px;
       line-height: 1.9;
     }
@@ -257,8 +260,8 @@ import { UI } from '../../shared/ui';
     .workflow > div {
       position: relative;
       padding: 22px 14px 18px;
-      border: 1px solid #e2e6ed;
-      background: #ffffffb3;
+      border: 1px solid var(--brand-line);
+      background: var(--surface);
       border-radius: 12px;
     }
     .workflow div > span {
@@ -266,11 +269,11 @@ import { UI } from '../../shared/ui';
       right: 10px;
       top: 10px;
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .workflow mat-icon {
-      color: #b55322;
-      background: #fff0e7;
+      color: var(--accent-ink);
+      background: var(--accent-soft);
       padding: 8px;
       width: 20px;
       height: 20px;
@@ -289,7 +292,7 @@ import { UI } from '../../shared/ui';
     }
     .workflow small {
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
       line-height: 1.7;
     }
     .intro-footer {
@@ -297,13 +300,13 @@ import { UI } from '../../shared/ui';
       align-items: center;
       gap: 18px;
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .heritage {
       font-weight: 800;
-      color: #344054;
+      color: var(--brand-ink);
       padding-right: 18px;
-      border-right: 1px solid #cdd4de;
+      border-right: 1px solid var(--control-line);
     }
     .login-panel {
       display: flex;
@@ -314,7 +317,7 @@ import { UI } from '../../shared/ui';
       gap: 48px;
     }
     .description {
-      color: #667085;
+      color: var(--text-muted);
       font-size: 12px;
       margin-bottom: 30px;
     }
@@ -326,7 +329,7 @@ import { UI } from '../../shared/ui';
       margin-top: 20px;
       border-top: 1px solid var(--brand-line);
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
       line-height: 1.8;
     }
     .access-note mat-icon {
@@ -339,12 +342,12 @@ import { UI } from '../../shared/ui';
     .message {
       padding: 12px;
       border-radius: 8px;
-      background: #fff4ef;
+      background: var(--accent-soft);
       font-size: 12px;
     }
     .message.success {
-      color: #286346;
-      background: #edf8f1;
+      color: var(--green-ink);
+      background: var(--green-soft);
     }
     @media (max-width: 1100px) {
       .intro {
@@ -378,6 +381,7 @@ import { UI } from '../../shared/ui';
 })
 export class Login {
   protected readonly auth = inject(Auth);
+  protected readonly version = APP_VERSION;
   private readonly router = inject(Router);
 
   protected readonly mode = signal<'in' | 'up'>('in');

@@ -32,6 +32,7 @@ users must click the emailed link before they can sign in.
 ```bash
 npm test -- --watch=false     # unit tests: quote maths, message links, Excel validation, PDF
 npm run build
+npm run check:pwa             # verify the built PWA, release version, icons and cached asset hashes
 ```
 
 `supabase/tests/` holds two database checks that need a throwaway local stack
@@ -39,6 +40,24 @@ npm run build
 test users and records.
 
 ## Deploy
+
+The app version is kept in `package.json` (currently `1.0.0`) and shown in the workspace,
+sign-in page and app menu. Use `npm version patch --no-git-tag-version` (or `minor` / `major`)
+for a release, then commit and push the updated package files with the changes.
+`npm run build` stamps the generated service-worker manifest with the same version and CI commit.
+
+Users can choose Device theme, Light or Dark from the appearance button. Their choice is saved
+on that device. The install menu offers the browser's native PWA prompt when supported, with
+manual instructions for Safari and other browsers. Installation needs HTTPS or localhost.
+
+Production builds include Angular's service worker. It checks for a new release after startup,
+when returning to the app or reconnecting, and hourly while open. Users can also choose
+**Check for updates**. A downloaded release offers **Update now** or **Later**; save any edits
+before updating. Only static app assets are cached; Supabase records, authentication requests
+and customer documents are not added to service-worker caches. ERP reads and writes need a connection.
+
+For local PWA verification, build with `npm run build`, then serve `dist/chemmanoor-erp/browser`
+over localhost with a static server. `npm start` intentionally disables the service worker.
 
 Every push to `main` runs the tests, builds, and publishes to GitHub Pages at
 https://erp.chemmanoormetals.com (see `.github/workflows/deploy.yml`). The domain needs a

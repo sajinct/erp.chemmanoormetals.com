@@ -8,6 +8,8 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { Auth } from './core/auth';
 import { ROLES } from './core/models';
 import { LabelPipe } from './shared/ui';
+import { AppTools } from './shared/app-tools';
+import { APP_VERSION } from './core/version';
 
 @Component({
   selector: 'app-shell',
@@ -20,6 +22,7 @@ import { LabelPipe } from './shared/ui';
     MatButtonModule,
     LabelPipe,
     FormsModule,
+    AppTools,
   ],
   template: `
     <mat-sidenav-container class="container">
@@ -60,6 +63,7 @@ import { LabelPipe } from './shared/ui';
             <strong>CM <span>/</span> 1975</strong>
             <p>Built on trust.<br />Made for what’s next.</p>
             <span>Chemmanoor Metals</span>
+            <span class="app-version">ERP v{{ version }}</span>
           </div>
         </div>
       </mat-sidenav>
@@ -87,6 +91,7 @@ import { LabelPipe } from './shared/ui';
               <mat-icon>arrow_forward</mat-icon>
             </button>
           </form>
+          <app-tools />
           <span class="avatar" aria-hidden="true">{{ initials() }}</span>
           <span class="who">
             <strong>{{ auth.profile()?.full_name }}</strong>
@@ -107,7 +112,7 @@ import { LabelPipe } from './shared/ui';
     }
     .nav {
       width: 250px;
-      background: #fff;
+      background: var(--surface);
       border-right: 1px solid var(--brand-line);
       border-radius: 0;
     }
@@ -127,7 +132,7 @@ import { LabelPipe } from './shared/ui';
     }
     .section {
       padding: 20px 26px 12px;
-      color: #7b8493;
+      color: var(--text-soft);
     }
     .item {
       display: flex;
@@ -136,7 +141,7 @@ import { LabelPipe } from './shared/ui';
       padding: 12px 14px;
       margin: 0 12px 5px;
       border-radius: 8px;
-      color: #566173;
+      color: var(--text-muted);
       font-size: 13px;
       font-weight: 600;
       text-decoration: none;
@@ -152,8 +157,8 @@ import { LabelPipe } from './shared/ui';
       text-decoration: none;
     }
     .item.active {
-      background: #fff0e7;
-      color: #a84415;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
     }
     .item.active mat-icon {
       color: inherit;
@@ -162,7 +167,7 @@ import { LabelPipe } from './shared/ui';
       margin-top: auto;
       padding: 42px 28px 24px;
       font-size: 12px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .bar {
       position: sticky;
@@ -173,18 +178,18 @@ import { LabelPipe } from './shared/ui';
       gap: 14px;
       height: 72px;
       padding: 0 28px;
-      background: #fff;
+      background: var(--surface);
       color: var(--brand-ink);
       border-bottom: 1px solid var(--brand-line);
       font-size: 12px;
     }
     .bar button {
-      color: #667085;
+      color: var(--text-muted);
     }
     .bar-logo {
       height: 30px;
       width: auto;
-      background: #fff;
+      background: var(--surface);
       padding: 4px 8px;
       border-radius: 2px;
     }
@@ -199,7 +204,7 @@ import { LabelPipe } from './shared/ui';
     }
     .who span {
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .who strong {
       max-width: 150px;
@@ -211,19 +216,19 @@ import { LabelPipe } from './shared/ui';
       display: flex;
       gap: 10px;
       align-items: center;
-      background: #f8fafc;
+      background: var(--surface-subtle);
       border: 1px solid var(--brand-line);
       border-radius: 10px;
       padding: 12px;
       margin: 0 16px 8px;
     }
     .workspace > mat-icon {
-      background: #fff;
+      background: var(--surface);
       padding: 6px;
       box-sizing: content-box;
       border: 1px solid var(--brand-line);
       border-radius: 7px;
-      color: #667085;
+      color: var(--text-muted);
       font-size: 19px;
       width: 19px;
       height: 19px;
@@ -236,7 +241,7 @@ import { LabelPipe } from './shared/ui';
     }
     .workspace span {
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .item .nav-arrow {
       margin-left: auto;
@@ -249,7 +254,7 @@ import { LabelPipe } from './shared/ui';
       opacity: 1;
     }
     .foot strong {
-      color: #344054;
+      color: var(--brand-ink);
       font-size: 16px;
       font-weight: 800;
     }
@@ -268,15 +273,20 @@ import { LabelPipe } from './shared/ui';
       align-items: center;
       gap: 12px;
       white-space: nowrap;
+      min-width: 0;
+    }
+    .breadcrumb strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .breadcrumb span {
-      color: #667085;
+      color: var(--text-muted);
     }
     .breadcrumb mat-icon {
       width: 16px;
       height: 16px;
       font-size: 16px;
-      color: #98a2b3;
+      color: var(--text-faint);
     }
     .quick-search {
       display: flex;
@@ -291,7 +301,7 @@ import { LabelPipe } from './shared/ui';
       width: 18px;
       height: 18px;
       font-size: 18px;
-      color: #7b8493;
+      color: var(--text-soft);
     }
     .quick-search input {
       width: 100%;
@@ -309,7 +319,7 @@ import { LabelPipe } from './shared/ui';
     .quick-search button {
       display: grid;
       place-items: center;
-      background: #f5f7fa;
+      background: var(--surface-subtle);
       border: 0;
       padding: 3px;
       border-radius: 4px;
@@ -327,8 +337,8 @@ import { LabelPipe } from './shared/ui';
       height: 36px;
       flex-shrink: 0;
       border-radius: 50%;
-      background: #fff0e7;
-      color: #a84415;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
       font-size: 12px;
       font-weight: 800;
     }
@@ -370,6 +380,7 @@ export class Shell {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly roles = ROLES;
+  protected readonly version = APP_VERSION;
   protected search = '';
   protected readonly section = signal('Dashboard');
   protected readonly initials = computed(() =>

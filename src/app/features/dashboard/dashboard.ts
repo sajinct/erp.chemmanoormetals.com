@@ -279,7 +279,7 @@ import { UI } from '../../shared/ui';
       align-items: center;
       gap: 8px;
       font-size: 11px;
-      color: #667085;
+      color: var(--text-muted);
       margin-right: 6px;
     }
     .date-label mat-icon {
@@ -303,7 +303,7 @@ import { UI } from '../../shared/ui';
         box-shadow 0.15s;
     }
     .metric:hover {
-      border-color: #d7b19b;
+      border-color: var(--warm-line);
       box-shadow: 0 3px 12px #202b3b08;
     }
     .metric-label {
@@ -312,24 +312,24 @@ import { UI } from '../../shared/ui';
       justify-content: space-between;
       font-size: 12px;
       font-weight: 600;
-      color: #667085;
+      color: var(--text-muted);
       gap: 5px;
     }
     .blue {
-      background: #edf4ff;
-      color: #4675ca;
+      background: var(--blue-soft);
+      color: var(--blue-ink);
     }
     .orange {
-      background: #fff0e7;
-      color: #b55322;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
     }
     .purple {
-      background: #f2edff;
-      color: #8b62bf;
+      background: var(--purple-soft);
+      color: var(--purple-ink);
     }
     .green {
-      background: #eaf6ef;
-      color: #398263;
+      background: var(--green-soft);
+      color: var(--green-ink);
     }
     .metric > strong {
       display: block;
@@ -346,21 +346,6 @@ import { UI } from '../../shared/ui';
       display: flex;
       align-items: center;
       overflow-wrap: anywhere;
-    }
-    .metric-note {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-      font-size: 10px;
-      font-weight: 500;
-      color: #667085;
-    }
-    .metric-note mat-icon {
-      margin-left: auto;
-      width: 14px;
-      height: 14px;
-      font-size: 14px;
-      color: #98a2b3;
     }
     .pipeline {
       padding: 0;
@@ -392,7 +377,7 @@ import { UI } from '../../shared/ui';
       align-items: center;
       gap: 7px;
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
       white-space: nowrap;
     }
     .stage-dot {
@@ -412,7 +397,7 @@ import { UI } from '../../shared/ui';
       height: 4px;
       border-radius: 3px;
       overflow: hidden;
-      background: #f0f2f6;
+      background: var(--neutral-soft);
     }
     .stage-fill {
       display: block;
@@ -445,7 +430,7 @@ import { UI } from '../../shared/ui';
     .cell-sub {
       display: block;
       font-size: 10px;
-      color: #7b8493;
+      color: var(--text-soft);
       margin-top: 3px;
     }
     .contact-link {
@@ -455,7 +440,7 @@ import { UI } from '../../shared/ui';
       height: 30px;
       border: 1px solid var(--brand-line);
       border-radius: 7px;
-      color: #667085;
+      color: var(--text-muted);
     }
     .contact-link mat-icon {
       width: 15px;
@@ -471,7 +456,7 @@ import { UI } from '../../shared/ui';
     }
     .shortcuts > p {
       font-size: 11px;
-      color: #667085;
+      color: var(--text-muted);
       margin: 0 0 18px;
     }
     .shortcuts > a {
@@ -493,7 +478,7 @@ import { UI } from '../../shared/ui';
     .shortcuts small {
       display: block;
       font-size: 10px;
-      color: #667085;
+      color: var(--text-muted);
       margin-top: 3px;
     }
     .shortcuts a > mat-icon {
@@ -501,7 +486,7 @@ import { UI } from '../../shared/ui';
       width: 16px;
       height: 16px;
       font-size: 16px;
-      color: #98a2b3;
+      color: var(--text-faint);
     }
     #collections {
       scroll-margin-top: 90px;
@@ -512,14 +497,14 @@ import { UI } from '../../shared/ui';
       letter-spacing: -0.04em;
     }
     .received {
-      color: #398263;
+      color: var(--green-ink);
     }
     .balance {
       font-weight: 800;
     }
     .overview-footer {
       text-align: center;
-      color: #7b8493;
+      color: var(--text-soft);
       font-size: 10px;
       padding: 8px;
     }

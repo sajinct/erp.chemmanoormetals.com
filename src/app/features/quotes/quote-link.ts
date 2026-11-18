@@ -13,7 +13,13 @@ import { Supabase } from '../../core/supabase';
   template: `
     <div class="wrap">
       <div class="card box">
-        <img class="logo" src="logo.jpg" width="382" height="70" alt="Chemmanoor Metals — trusted protection" />
+        <img
+          class="logo"
+          src="logo.jpg"
+          width="382"
+          height="70"
+          alt="Chemmanoor Metals — trusted protection"
+        />
         @switch (state()) {
           @case ('loading') {
             <h1>Opening your quotation…</h1>
@@ -79,12 +85,12 @@ import { Supabase } from '../../core/supabase';
     }
     p {
       margin: 0 0 12px;
-      color: #656a65;
+      color: var(--text-muted);
     }
     .tagline {
       margin: 0;
       font-size: 12px;
-      color: #686c63;
+      color: var(--text-muted);
     }
   `,
 })

@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm test -- --watch=false
       - run: npm run build
+      - run: npm run check:pwa
       # GitHub Pages serves 404.html for unknown paths; a copy of index.html
       # lets links such as /leads/123 open the app directly.
       - run: cp dist/chemmanoor-erp/browser/index.html dist/chemmanoor-erp/browser/404.html
