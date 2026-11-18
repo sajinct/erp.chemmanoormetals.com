@@ -12,6 +12,9 @@ import { UI } from '../../shared/ui';
   template: `
     @if (customer(); as c) {
       <div class="page">
+        <a class="back-link" routerLink="/customers"
+          ><mat-icon>arrow_back</mat-icon>All customers</a
+        >
         <div class="page-head">
           <h1>{{ c.name }}</h1>
         </div>
@@ -40,7 +43,7 @@ import { UI } from '../../shared/ui';
             </mat-form-field>
           </div>
           @if (canEdit) {
-            <button mat-flat-button (click)="save(c)">Save</button>
+            <button mat-flat-button (click)="save(c)">Save customer</button>
           }
         </div>
         <div class="card table-wrap">
@@ -57,10 +60,14 @@ import { UI } from '../../shared/ui';
             <tbody>
               @for (p of projects(); track p.id) {
                 <tr>
-                  <td><a [routerLink]="['/projects', p.id]">{{ p.ref_no }}</a></td>
+                  <td>
+                    <a [routerLink]="['/projects', p.id]">{{ p.ref_no }}</a>
+                  </td>
                   <td class="wrap">{{ p.site_address }}</td>
                   <td>{{ p.created_at | date: 'd MMM y' }}</td>
-                  <td><span class="chip {{ p.status }}">{{ p.status | label: statuses }}</span></td>
+                  <td>
+                    <span class="chip {{ p.status }}">{{ p.status | label: statuses }}</span>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -85,7 +92,11 @@ export class CustomerDetail {
       .then((c) => this.customer.set(c));
     void this.sb
       .run<Project[]>(
-        db.from('projects').select('*').eq('customer_id', this.id).order('created_at', { ascending: false }),
+        db
+          .from('projects')
+          .select('*')
+          .eq('customer_id', this.id)
+          .order('created_at', { ascending: false }),
       )
       .then((p) => this.projects.set(p));
   }

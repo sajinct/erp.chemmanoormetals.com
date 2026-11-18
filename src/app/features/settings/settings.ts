@@ -10,7 +10,12 @@ import { UI } from '../../shared/ui';
   imports: [UI],
   template: `
     <div class="page">
-      <div class="page-head"><h1>Settings</h1></div>
+      <div class="page-head">
+        <div class="page-title">
+          <h1>Settings</h1>
+          <p>Manage your team, company details and quotation preferences.</p>
+        </div>
+      </div>
 
       <div class="card table-wrap">
         <h2>Users</h2>
@@ -33,7 +38,12 @@ import { UI } from '../../shared/ui';
                 <td>{{ u.full_name }}</td>
                 <td>{{ u.email }}</td>
                 <td>
-                  <select [ngModel]="u.role" (ngModelChange)="setUser(u, { role: $event })" [disabled]="u.id === me">
+                  <select
+                    [attr.aria-label]="'Role for ' + u.full_name"
+                    [ngModel]="u.role"
+                    (ngModelChange)="setUser(u, { role: $event })"
+                    [disabled]="u.id === me"
+                  >
                     @for (o of roles; track o.value) {
                       <option [ngValue]="o.value">{{ o.label }}</option>
                     }
@@ -42,6 +52,7 @@ import { UI } from '../../shared/ui';
                 <td>
                   <input
                     type="checkbox"
+                    [attr.aria-label]="'Active account: ' + u.full_name"
                     class="check"
                     [ngModel]="u.active"
                     (ngModelChange)="setUser(u, { active: $event })"
@@ -58,19 +69,39 @@ import { UI } from '../../shared/ui';
         <div class="card">
           <h2>Company (shown on quotations)</h2>
           <div class="form-grid">
-            <mat-form-field><mat-label>Company name</mat-label><input matInput [(ngModel)]="s.company_name" /></mat-form-field>
-            <mat-form-field><mat-label>Phone</mat-label><input matInput [(ngModel)]="s.phone" /></mat-form-field>
-            <mat-form-field><mat-label>Email</mat-label><input matInput [(ngModel)]="s.email" /></mat-form-field>
-            <mat-form-field><mat-label>GSTIN</mat-label><input matInput [(ngModel)]="s.gstin" /></mat-form-field>
-            <mat-form-field class="wide"><mat-label>Address</mat-label><input matInput [(ngModel)]="s.address" /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Company name</mat-label><input matInput [(ngModel)]="s.company_name"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Phone</mat-label><input matInput [(ngModel)]="s.phone"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Email</mat-label><input matInput [(ngModel)]="s.email"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>GSTIN</mat-label><input matInput [(ngModel)]="s.gstin"
+            /></mat-form-field>
+            <mat-form-field class="wide"
+              ><mat-label>Address</mat-label><input matInput [(ngModel)]="s.address"
+            /></mat-form-field>
           </div>
           <h2>Bank details (for advance payments)</h2>
           <div class="form-grid">
-            <mat-form-field><mat-label>Account name</mat-label><input matInput [(ngModel)]="s.bank_account_name" /></mat-form-field>
-            <mat-form-field><mat-label>Bank and branch</mat-label><input matInput [(ngModel)]="s.bank_name" /></mat-form-field>
-            <mat-form-field><mat-label>Account number</mat-label><input matInput [(ngModel)]="s.bank_account_no" /></mat-form-field>
-            <mat-form-field><mat-label>IFSC</mat-label><input matInput [(ngModel)]="s.bank_ifsc" /></mat-form-field>
-            <mat-form-field><mat-label>UPI ID</mat-label><input matInput [(ngModel)]="s.upi_id" /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Account name</mat-label><input matInput [(ngModel)]="s.bank_account_name"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Bank and branch</mat-label><input matInput [(ngModel)]="s.bank_name"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>Account number</mat-label><input matInput [(ngModel)]="s.bank_account_no"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>IFSC</mat-label><input matInput [(ngModel)]="s.bank_ifsc"
+            /></mat-form-field>
+            <mat-form-field
+              ><mat-label>UPI ID</mat-label><input matInput [(ngModel)]="s.upi_id"
+            /></mat-form-field>
           </div>
           <h2>Quotations</h2>
           <div class="form-grid">
@@ -85,8 +116,8 @@ import { UI } from '../../shared/ui';
           </div>
           <h2>Message wording</h2>
           <p class="sub">
-            Words in curly brackets are filled in automatically, for example {{ '{name}' }}, {{ '{ref}' }},
-            {{ '{company}' }}.
+            Words in curly brackets are filled in automatically, for example {{ '{name}' }},
+            {{ '{ref}' }}, {{ '{company}' }}.
           </p>
           <div class="form-grid">
             <mat-form-field class="wide">
@@ -94,7 +125,9 @@ import { UI } from '../../shared/ui';
               <textarea matInput rows="6" [(ngModel)]="s.msg_measurement"></textarea>
             </mat-form-field>
             <mat-form-field class="wide">
-              <mat-label>Quotation ({{ '{quote_no}, {total}, {valid_until}, {link}, {bank}' }})</mat-label>
+              <mat-label
+                >Quotation ({{ '{quote_no}, {total}, {valid_until}, {link}, {bank}' }})</mat-label
+              >
               <textarea matInput rows="7" [(ngModel)]="s.msg_quote"></textarea>
             </mat-form-field>
             <mat-form-field class="wide">
@@ -149,7 +182,10 @@ export class SettingsPage {
     await this.sb.run(
       this.sb.client
         .from('settings')
-        .update({ ...fields, quote_validity_days: Math.max(1, Number(s.quote_validity_days) || 15) })
+        .update({
+          ...fields,
+          quote_validity_days: Math.max(1, Number(s.quote_validity_days) || 15),
+        })
         .eq('id', id),
     );
     this.sb.info('Settings saved');

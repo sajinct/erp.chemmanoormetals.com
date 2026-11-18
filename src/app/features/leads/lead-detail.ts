@@ -23,6 +23,7 @@ import { LeadFormDialog } from './lead-form-dialog';
   template: `
     @if (lead(); as l) {
       <div class="page">
+        <a class="back-link" routerLink="/leads"><mat-icon>arrow_back</mat-icon>All leads</a>
         <div class="page-head">
           <h1>
             {{ l.name }} <span class="sub">{{ l.ref_no }}</span>
@@ -42,7 +43,9 @@ import { LeadFormDialog } from './lead-form-dialog';
             <div><span class="sub">Phone</span><br />+{{ l.phone }}</div>
             <div><span class="sub">Email</span><br />{{ l.email || '—' }}</div>
             <div><span class="sub">Location</span><br />{{ l.location || '—' }}</div>
-            <div><span class="sub">Interested in</span><br />{{ l.interest | label: interests }}</div>
+            <div>
+              <span class="sub">Interested in</span><br />{{ l.interest | label: interests }}
+            </div>
             <div><span class="sub">Segment</span><br />{{ l.segment | label: segments }}</div>
             <div>
               <span class="sub">Source</span><br />{{ l.source | label: sources }}
@@ -50,7 +53,11 @@ import { LeadFormDialog } from './lead-form-dialog';
                 (by {{ l.referred_by }})
               }
             </div>
-            <div><span class="sub">Next follow-up</span><br />{{ (l.next_follow_up | date: 'd MMM y') || '—' }}</div>
+            <div>
+              <span class="sub">Next follow-up</span><br />{{
+                (l.next_follow_up | date: 'd MMM y') || '—'
+              }}
+            </div>
             <div class="wide"><span class="sub">Notes</span><br />{{ l.notes || '—' }}</div>
           </div>
         </div>
@@ -69,11 +76,17 @@ import { LeadFormDialog } from './lead-form-dialog';
               </mat-form-field>
               <span class="spacer"></span>
               @for (p of projects(); track p.id) {
-                <a mat-stroked-button [routerLink]="['/projects', p.id]">Open project {{ p.ref_no }}</a>
+                <a mat-stroked-button [routerLink]="['/projects', p.id]"
+                  >Open project {{ p.ref_no }}</a
+                >
               }
             </div>
             <h2 class="convert">
-              {{ projects().length ? 'Start another project for this lead' : 'Customer wants a measurement? Start the project' }}
+              {{
+                projects().length
+                  ? 'Start another project for this lead'
+                  : 'Customer wants a measurement? Start the project'
+              }}
             </h2>
             <div class="form-grid">
               <mat-form-field>
@@ -106,7 +119,8 @@ import { LeadFormDialog } from './lead-form-dialog';
           @for (a of activities(); track a.id) {
             <div class="activity">
               <span class="sub">
-                {{ a.created_at | date: 'd MMM y, h:mm a' }} · {{ a.profiles?.full_name || 'System' }} · {{ a.type }}
+                {{ a.created_at | date: 'd MMM y, h:mm a' }} ·
+                {{ a.profiles?.full_name || 'System' }} · {{ a.type }}
               </span>
               <div>{{ a.text }}</div>
             </div>
@@ -168,7 +182,9 @@ export class LeadDetail {
           .eq('lead_id', this.id)
           .order('created_at', { ascending: false }),
       ),
-      this.sb.run<Project[]>(db.from('projects').select('*').eq('lead_id', this.id).order('created_at')),
+      this.sb.run<Project[]>(
+        db.from('projects').select('*').eq('lead_id', this.id).order('created_at'),
+      ),
     ]);
     this.lead.set(lead);
     this.activities.set(activities);
@@ -188,7 +204,9 @@ export class LeadDetail {
   }
 
   private log(type: string, text: string): PromiseLike<unknown> {
-    return this.sb.run(this.sb.client.from('lead_activities').insert({ lead_id: this.id, type, text }));
+    return this.sb.run(
+      this.sb.client.from('lead_activities').insert({ lead_id: this.id, type, text }),
+    );
   }
 
   protected async addNote(l: Lead, type: 'note' | 'call'): Promise<void> {
@@ -196,7 +214,9 @@ export class LeadDetail {
     if (!text) return;
     await this.log(type, text);
     if (type === 'call' && l.status === 'new') {
-      await this.sb.run(this.sb.client.from('leads').update({ status: 'contacted' }).eq('id', l.id));
+      await this.sb.run(
+        this.sb.client.from('leads').update({ status: 'contacted' }).eq('id', l.id),
+      );
     }
     this.note = '';
     await this.load();

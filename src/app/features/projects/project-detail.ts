@@ -32,6 +32,7 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
   template: `
     @if (project(); as p) {
       <div class="page">
+        <a class="back-link" routerLink="/projects"><mat-icon>arrow_back</mat-icon>All projects</a>
         <div class="page-head">
           <h1>
             {{ p.ref_no }} <span class="sub">{{ p.customers?.name }}</span>
@@ -105,12 +106,23 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
               </thead>
               <tbody>
                 @for (m of measurements(); track m.id) {
-                  <tr class="link" (click)="router.navigate(['/projects', p.id, 'measurements', m.id])">
-                    <td>R{{ m.revision_no }}</td>
+                  <tr
+                    class="link"
+                    (click)="router.navigate(['/projects', p.id, 'measurements', m.id])"
+                  >
+                    <td>
+                      <a
+                        [routerLink]="['/projects', p.id, 'measurements', m.id]"
+                        (click)="$event.stopPropagation()"
+                        >R{{ m.revision_no }}</a
+                      >
+                    </td>
                     <td>{{ m.measured_on | date: 'd MMM y' }}</td>
                     <td>{{ m.measurer?.full_name }}</td>
                     <td class="num">{{ m.measurement_items?.length }}</td>
-                    <td><span class="chip {{ m.status }}">{{ m.status | label: mStatuses }}</span></td>
+                    <td>
+                      <span class="chip {{ m.status }}">{{ m.status | label: mStatuses }}</span>
+                    </td>
                     <td>
                       @if (m.approved_at) {
                         {{ m.approver?.full_name }}, {{ m.approved_at | date: 'd MMM' }}
@@ -146,9 +158,7 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
               }
             </div>
           } @else if (measurements().length) {
-            <p class="sub">
-              A quote can be made once the approver marks a revision as final.
-            </p>
+            <p class="sub">A quote can be made once the approver marks a revision as final.</p>
           }
         </div>
 
@@ -176,11 +186,19 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
               <tbody>
                 @for (q of quotes(); track q.id) {
                   <tr class="link" (click)="router.navigate(['/projects', p.id, 'quotes', q.id])">
-                    <td>{{ q.quote_no }}</td>
+                    <td>
+                      <a
+                        [routerLink]="['/projects', p.id, 'quotes', q.id]"
+                        (click)="$event.stopPropagation()"
+                        >{{ q.quote_no }}</a
+                      >
+                    </td>
                     <td>{{ q.created_at | date: 'd MMM y' }}</td>
                     <td>{{ q.valid_until | date: 'd MMM y' }}</td>
                     <td class="num">{{ q.total | inr }}</td>
-                    <td><span class="chip {{ q.status }}">{{ q.status | label: qStatuses }}</span></td>
+                    <td>
+                      <span class="chip {{ q.status }}">{{ q.status | label: qStatuses }}</span>
+                    </td>
                   </tr>
                 } @empty {
                   <tr>
@@ -206,7 +224,9 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
             <div class="row totals">
               <div><span class="sub">Quote total</span><br />Rs. {{ b.quote_total | inr }}</div>
               <div><span class="sub">Received</span><br />Rs. {{ b.paid | inr }}</div>
-              <div><span class="sub">Balance</span><br /><strong>Rs. {{ b.balance | inr }}</strong></div>
+              <div>
+                <span class="sub">Balance</span><br /><strong>Rs. {{ b.balance | inr }}</strong>
+              </div>
             </div>
           }
           <div class="table-wrap">
@@ -230,12 +250,20 @@ import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
                     <td>{{ pay.reference }}</td>
                     <td class="num">{{ pay.amount | inr }}</td>
                     <td>
-                      <a [href]="receiptWa(pay)" target="_blank" rel="noopener" (click)="markSent(pay)">WhatsApp</a>
+                      <a
+                        [href]="receiptWa(pay)"
+                        target="_blank"
+                        rel="noopener"
+                        (click)="markSent(pay)"
+                        >WhatsApp</a
+                      >
                       @if (p.customers?.email) {
                         · <a [href]="receiptMail(pay)" (click)="markSent(pay)">Email</a>
                       }
                       @if (pay.confirmation_sent_at) {
-                        <span class="sub"> · sent {{ pay.confirmation_sent_at | date: 'd MMM' }}</span>
+                        <span class="sub">
+                          · sent {{ pay.confirmation_sent_at | date: 'd MMM' }}</span
+                        >
                       }
                     </td>
                   </tr>
@@ -296,7 +324,9 @@ export class ProjectDetail {
   private readonly settings = signal<Settings | null>(null);
   private readonly products = signal<Product[]>([]);
 
-  protected readonly finalM = computed(() => this.measurements().find((m) => m.status === 'final') ?? null);
+  protected readonly finalM = computed(
+    () => this.measurements().find((m) => m.status === 'final') ?? null,
+  );
 
   /** WhatsApp link carrying the final measurement for the customer to confirm. */
   protected readonly confirmLink = computed(() => {
@@ -343,19 +373,31 @@ export class ProjectDetail {
   private async load(): Promise<void> {
     const db = this.sb.client;
     const [project, measurements, quotes, payments, balance] = await Promise.all([
-      this.sb.run<Project>(db.from('projects').select('*, customers(*)').eq('id', this.id).single()),
+      this.sb.run<Project>(
+        db.from('projects').select('*, customers(*)').eq('id', this.id).single(),
+      ),
       this.sb.run<Measurement[]>(
         db
           .from('measurements')
-          .select('*, measurement_items(*), measurer:profiles!measured_by(full_name), approver:profiles!approved_by(full_name)')
+          .select(
+            '*, measurement_items(*), measurer:profiles!measured_by(full_name), approver:profiles!approved_by(full_name)',
+          )
           .eq('project_id', this.id)
           .order('revision_no', { ascending: false }),
       ),
       this.sb.run<Quote[]>(
-        db.from('quotes').select('*').eq('project_id', this.id).order('created_at', { ascending: false }),
+        db
+          .from('quotes')
+          .select('*')
+          .eq('project_id', this.id)
+          .order('created_at', { ascending: false }),
       ),
-      this.sb.run<Payment[]>(db.from('payments').select('*').eq('project_id', this.id).order('received_on')),
-      this.sb.run<Balance | null>(db.from('project_balances').select('*').eq('project_id', this.id).maybeSingle()),
+      this.sb.run<Payment[]>(
+        db.from('payments').select('*').eq('project_id', this.id).order('received_on'),
+      ),
+      this.sb.run<Balance | null>(
+        db.from('project_balances').select('*').eq('project_id', this.id).maybeSingle(),
+      ),
     ]);
     this.project.set(project);
     this.measurements.set(measurements);
@@ -365,7 +407,10 @@ export class ProjectDetail {
   }
 
   protected hello(p: Project): string {
-    return waLink(p.customers?.phone ?? '', `Hello ${p.customers?.name ?? ''}, regarding your order ${p.ref_no}: `);
+    return waLink(
+      p.customers?.phone ?? '',
+      `Hello ${p.customers?.name ?? ''}, regarding your order ${p.ref_no}: `,
+    );
   }
 
   private async update(patch: Partial<Project>, done: string): Promise<void> {
@@ -375,12 +420,18 @@ export class ProjectDetail {
   }
 
   protected saveSite(p: Project): Promise<void> {
-    return this.update({ site_address: p.site_address || null, map_url: p.map_url || null }, 'Site details saved');
+    return this.update(
+      { site_address: p.site_address || null, map_url: p.map_url || null },
+      'Site details saved',
+    );
   }
 
   protected setStatus(p: Project, status: string): Promise<void> {
     if (status === 'cancelled' && !confirm(`Cancel project ${p.ref_no}?`)) return Promise.resolve();
-    return this.update({ status }, status === 'cancelled' ? 'Project cancelled' : 'Project reopened');
+    return this.update(
+      { status },
+      status === 'cancelled' ? 'Project cancelled' : 'Project reopened',
+    );
   }
 
   protected setConfirmed(p: Project, yes: boolean): Promise<void> {
@@ -453,7 +504,9 @@ export class ProjectDetail {
       );
       if (lines.length) {
         await this.sb.run(
-          this.sb.client.from('quote_items').insert(lines.map((l) => ({ ...l, quote_id: quote.id }))),
+          this.sb.client
+            .from('quote_items')
+            .insert(lines.map((l) => ({ ...l, quote_id: quote.id }))),
         );
       }
       await this.router.navigate(['/projects', p.id, 'quotes', quote.id]);
@@ -500,7 +553,11 @@ export class ProjectDetail {
 
   protected receiptMail(pay: Payment): string {
     const p = this.project();
-    return mailLink(p?.customers?.email ?? '', `Payment received - ${p?.ref_no ?? ''}`, this.receiptText(pay));
+    return mailLink(
+      p?.customers?.email ?? '',
+      `Payment received - ${p?.ref_no ?? ''}`,
+      this.receiptText(pay),
+    );
   }
 
   /** Runs alongside the link opening; it only records when the confirmation went out. */

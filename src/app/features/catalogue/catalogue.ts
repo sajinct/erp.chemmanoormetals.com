@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { Auth } from '../../core/auth';
 import { CATEGORIES, Product, UNITS, labelOf } from '../../core/models';
 import { Supabase } from '../../core/supabase';
@@ -12,6 +13,7 @@ import {
 } from '../../shared/excel';
 import { today } from '../../shared/messaging';
 import { UI } from '../../shared/ui';
+import { ProductDialog } from './product-dialog';
 
 /** Products and rates used to price quotes. Editable in place, or in bulk through Excel. */
 @Component({
@@ -20,8 +22,13 @@ import { UI } from '../../shared/ui';
   template: `
     <div class="page">
       <div class="page-head">
-        <h1>Products &amp; rates</h1>
-        <button mat-stroked-button (click)="export()"><mat-icon>download</mat-icon> Export Excel</button>
+        <div class="page-title">
+          <h1>Products &amp; rates</h1>
+          <p>Your product catalogue and pricing, ready for every quotation.</p>
+        </div>
+        <button mat-stroked-button (click)="export()">
+          <mat-icon>download</mat-icon> Export Excel
+        </button>
         @if (canEdit) {
           <label class="import">
             <input type="file" accept=".xlsx,.csv" (change)="pick($event)" hidden #file />
@@ -79,7 +86,11 @@ import { UI } from '../../shared/ui';
             </table>
           </div>
           <div class="row actions">
-            <button mat-flat-button (click)="applyImport()" [disabled]="busy() || !validRows().length">
+            <button
+              mat-flat-button
+              (click)="applyImport()"
+              [disabled]="busy() || !validRows().length"
+            >
               Import {{ validRows().length }} rows
             </button>
             <button mat-button (click)="preview.set([])">Discard</button>
@@ -90,7 +101,8 @@ import { UI } from '../../shared/ui';
       <div class="row filters">
         <mat-form-field subscriptSizing="dynamic">
           <mat-label>Search</mat-label>
-          <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" />
+          <mat-icon matPrefix>search</mat-icon
+          ><input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" />
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic">
           <mat-label>Category</mat-label>
@@ -101,6 +113,11 @@ import { UI } from '../../shared/ui';
             }
           </mat-select>
         </mat-form-field>
+        @if (search() || category()) {
+          <button mat-button (click)="search.set(''); category.set('')">
+            <mat-icon>close</mat-icon>Clear filters
+          </button>
+        }
       </div>
 
       <div class="card table-wrap">
@@ -120,23 +137,71 @@ import { UI } from '../../shared/ui';
             @for (p of shown(); track p.id) {
               <tr>
                 <td>
-                  <select [(ngModel)]="p.category" [disabled]="!canEdit" (change)="touch(p)">
+                  <select
+                    [(ngModel)]="p.category"
+                    [attr.aria-label]="'Category for ' + p.name"
+                    [disabled]="!canEdit"
+                    (change)="touch(p)"
+                  >
                     @for (o of categories; track o.value) {
                       <option [ngValue]="o.value">{{ o.label }}</option>
                     }
                   </select>
                 </td>
-                <td class="wrap"><input [(ngModel)]="p.name" [disabled]="!canEdit" (input)="touch(p)" /></td>
+                <td class="wrap">
+                  <input
+                    [(ngModel)]="p.name"
+                    aria-label="Product name"
+                    [disabled]="!canEdit"
+                    (input)="touch(p)"
+                  />
+                </td>
                 <td>
-                  <select [(ngModel)]="p.unit" [disabled]="!canEdit" (change)="touch(p)">
+                  <select
+                    [(ngModel)]="p.unit"
+                    [attr.aria-label]="'Unit for ' + p.name"
+                    [disabled]="!canEdit"
+                    (change)="touch(p)"
+                  >
                     @for (o of units; track o.value) {
                       <option [ngValue]="o.value">{{ o.label }}</option>
                     }
                   </select>
                 </td>
-                <td><input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="p.rate" [disabled]="!canEdit" (input)="touch(p)" /></td>
-                <td><input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="p.gst_percent" [disabled]="!canEdit" (input)="touch(p)" /></td>
-                <td><input type="checkbox" class="check" [(ngModel)]="p.active" [disabled]="!canEdit" (change)="touch(p)" /></td>
+                <td>
+                  <input
+                    class="narrow"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    [attr.aria-label]="'Rate for ' + p.name"
+                    [(ngModel)]="p.rate"
+                    [disabled]="!canEdit"
+                    (input)="touch(p)"
+                  />
+                </td>
+                <td>
+                  <input
+                    class="narrow"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    [attr.aria-label]="'GST percentage for ' + p.name"
+                    [(ngModel)]="p.gst_percent"
+                    [disabled]="!canEdit"
+                    (input)="touch(p)"
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    class="check"
+                    [attr.aria-label]="'In use: ' + p.name"
+                    [(ngModel)]="p.active"
+                    [disabled]="!canEdit"
+                    (change)="touch(p)"
+                  />
+                </td>
                 <td>
                   @if (dirty().has(p.id)) {
                     <button mat-flat-button (click)="save(p)">Save</button>
@@ -169,6 +234,7 @@ import { UI } from '../../shared/ui';
 })
 export class Catalogue {
   private readonly sb = inject(Supabase);
+  private readonly dialog = inject(MatDialog);
   protected readonly canEdit = inject(Auth).can('admin', 'approver');
   protected readonly categories = CATEGORIES;
   protected readonly units = UNITS;
@@ -181,11 +247,15 @@ export class Catalogue {
   protected readonly busy = signal(false);
 
   protected readonly validRows = computed(() => this.preview().filter((r) => !r.errors.length));
-  protected readonly known = computed(() => new Set(this.products().map((p) => p.name.toLowerCase())));
+  protected readonly known = computed(
+    () => new Set(this.products().map((p) => p.name.toLowerCase())),
+  );
   protected readonly shown = computed(() => {
     const q = this.search().trim().toLowerCase();
     return this.products().filter(
-      (p) => (!this.category() || p.category === this.category()) && (!q || p.name.toLowerCase().includes(q)),
+      (p) =>
+        (!this.category() || p.category === this.category()) &&
+        (!q || p.name.toLowerCase().includes(q)),
     );
   });
 
@@ -195,7 +265,9 @@ export class Catalogue {
 
   private async load(): Promise<void> {
     this.products.set(
-      await this.sb.run<Product[]>(this.sb.client.from('products').select('*').order('category').order('name')),
+      await this.sb.run<Product[]>(
+        this.sb.client.from('products').select('*').order('category').order('name'),
+      ),
     );
     this.dirty.set(new Set());
   }
@@ -230,12 +302,17 @@ export class Catalogue {
     this.sb.info('Saved');
   }
 
-  protected async add(): Promise<void> {
-    const name = prompt('Name of the new product')?.trim();
-    if (!name) return;
-    await this.sb.run(this.sb.client.from('products').insert({ name }));
-    this.search.set(name);
-    await this.load();
+  protected add(): void {
+    this.dialog
+      .open(ProductDialog, { maxWidth: '95vw' })
+      .afterClosed()
+      .subscribe((name: string | undefined) => {
+        if (name) {
+          this.search.set(name);
+          this.category.set('');
+          void this.load();
+        }
+      });
   }
 
   protected export(): void {
