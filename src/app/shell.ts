@@ -399,6 +399,7 @@ export class Shell {
     { path: '/projects', label: 'Projects', icon: 'work_outline', admin: false },
     { path: '/customers', label: 'Customers', icon: 'people_outline', admin: false },
     { path: '/catalogue', label: 'Products & rates', icon: 'inventory_2', admin: false },
+    { path: '/users', label: 'Users & roles', icon: 'manage_accounts', admin: true },
     { path: '/settings', label: 'Settings', icon: 'settings', admin: true },
   ];
 

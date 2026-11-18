@@ -6,3 +6,8 @@ project_id = "erp.chemmanoormetals.com"
 [auth]
 # Where emailed links (confirm sign-up, reset password) send people.
 site_url = "https://erp.chemmanoormetals.com"
+
+[functions.manage-users]
+# Validate the bearer token using Auth getUser inside the function. This also
+# supports projects using asymmetric JWT signing keys.
+verify_jwt = false

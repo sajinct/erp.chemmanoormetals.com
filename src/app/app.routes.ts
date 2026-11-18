@@ -48,7 +48,8 @@ export const routes: Routes = [
       },
       {
         path: 'projects',
-        loadComponent: () => import('./features/projects/projects-list').then((m) => m.ProjectsList),
+        loadComponent: () =>
+          import('./features/projects/projects-list').then((m) => m.ProjectsList),
       },
       {
         path: 'projects/:id',
@@ -67,6 +68,11 @@ export const routes: Routes = [
       {
         path: 'catalogue',
         loadComponent: () => import('./features/catalogue/catalogue').then((m) => m.Catalogue),
+      },
+      {
+        path: 'users',
+        canActivate: [roleGuard('admin')],
+        loadComponent: () => import('./features/users/users').then((m) => m.UsersPage),
       },
       {
         path: 'settings',

@@ -1,10 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
-import { Auth } from '../../core/auth';
-import { Profile, ROLES, Settings } from '../../core/models';
+import { Settings } from '../../core/models';
 import { Supabase } from '../../core/supabase';
 import { UI } from '../../shared/ui';
 
-/** Admin only: company and bank details, message wording, and who can use the ERP. */
+/** Admin only: company and bank details, quotation preferences and message wording. */
 @Component({
   selector: 'app-settings',
   imports: [UI],
@@ -13,56 +12,18 @@ import { UI } from '../../shared/ui';
       <div class="page-head">
         <div class="page-title">
           <h1>Settings</h1>
-          <p>Manage your team, company details and quotation preferences.</p>
+          <p>Manage your company details and quotation preferences.</p>
         </div>
       </div>
 
-      <div class="card table-wrap">
-        <h2>Users</h2>
-        <p class="sub">
-          New staff use "Request access" on the sign-in page; activate them here and choose a role.
-          Approver is the person who finalises measurements.
-        </p>
-        <table class="tbl">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Active</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (u of users(); track u.id) {
-              <tr>
-                <td>{{ u.full_name }}</td>
-                <td>{{ u.email }}</td>
-                <td>
-                  <select
-                    [attr.aria-label]="'Role for ' + u.full_name"
-                    [ngModel]="u.role"
-                    (ngModelChange)="setUser(u, { role: $event })"
-                    [disabled]="u.id === me"
-                  >
-                    @for (o of roles; track o.value) {
-                      <option [ngValue]="o.value">{{ o.label }}</option>
-                    }
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    [attr.aria-label]="'Active account: ' + u.full_name"
-                    class="check"
-                    [ngModel]="u.active"
-                    (ngModelChange)="setUser(u, { active: $event })"
-                    [disabled]="u.id === me"
-                  />
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+      <div class="card row">
+        <div class="spacer">
+          <h2>Users & roles</h2>
+          <span class="sub">Create staff accounts, assign roles and manage workspace access.</span>
+        </div>
+        <a mat-stroked-button routerLink="/users"
+          ><mat-icon>manage_accounts</mat-icon>Manage users</a
+        >
       </div>
 
       @if (s(); as s) {
@@ -141,10 +102,6 @@ import { UI } from '../../shared/ui';
     </div>
   `,
   styles: `
-    .check {
-      width: auto !important;
-      min-width: 0 !important;
-    }
     h2:not(:first-child) {
       margin-top: 16px;
     }
@@ -152,29 +109,10 @@ import { UI } from '../../shared/ui';
 })
 export class SettingsPage {
   private readonly sb = inject(Supabase);
-  protected readonly me = inject(Auth).profile()?.id;
-  protected readonly roles = ROLES;
   protected readonly s = signal<Settings | null>(null);
-  protected readonly users = signal<Profile[]>([]);
 
   constructor() {
     void this.sb.settings().then((s) => this.s.set(s));
-    void this.loadUsers();
-  }
-
-  private async loadUsers(): Promise<void> {
-    this.users.set(
-      await this.sb.run<Profile[]>(this.sb.client.from('profiles').select('*').order('created_at')),
-    );
-  }
-
-  protected async setUser(u: Profile, patch: Partial<Profile>): Promise<void> {
-    try {
-      await this.sb.run(this.sb.client.from('profiles').update(patch).eq('id', u.id));
-      this.sb.info(`${u.full_name} updated`);
-    } finally {
-      await this.loadUsers();
-    }
   }
 
   protected async save(s: Settings): Promise<void> {

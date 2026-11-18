@@ -62,8 +62,8 @@ import { APP_VERSION } from '../../core/version';
 
           @if (auth.signedIn() && !auth.active()) {
             <p>
-              Your account is waiting for approval. Ask an admin to activate it in Settings, then
-              sign in again.
+              Your account is waiting for approval. Ask an admin to activate it in Users & roles,
+              then sign in again.
             </p>
             <button mat-stroked-button type="button" (click)="auth.signOut()">
               Use another account
