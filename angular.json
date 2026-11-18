@@ -30,6 +30,7 @@
               }
             ],
             "styles": [
+              "node_modules/overlayscrollbars/styles/overlayscrollbars.css",
               "src/styles.scss"
             ],
             "allowedCommonJsDependencies": [
