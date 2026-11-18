@@ -176,12 +176,21 @@ html[data-theme='dark'] {
 @media (forced-colors: none) {
   * {
     scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 160ms ease;
+  }
+  *:focus-visible,
+  *:has(:focus-visible),
+  *.is-scrolling {
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
 
   @supports selector(::-webkit-scrollbar) {
     // Standard scrollbar properties override the custom pseudo-elements in Blink.
-    * {
+    *,
+    *:focus-visible,
+    *:has(:focus-visible),
+    *.is-scrolling {
       scrollbar-width: auto;
       scrollbar-color: auto;
     }
@@ -195,10 +204,16 @@ html[data-theme='dark'] {
     }
     *::-webkit-scrollbar-thumb {
       min-height: 32px;
-      background-color: var(--scrollbar-thumb);
+      background-color: transparent;
       background-clip: padding-box;
       border: 2px solid transparent;
       border-radius: 999px;
+      transition: background-color 160ms ease;
+    }
+    *:focus-visible::-webkit-scrollbar-thumb,
+    *:has(:focus-visible)::-webkit-scrollbar-thumb,
+    *.is-scrolling::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
     }
     *::-webkit-scrollbar-thumb:hover {
       background-color: var(--scrollbar-thumb-hover);
