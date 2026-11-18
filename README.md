@@ -1,59 +1,55 @@
-# ChemmanoorErp
+# Chemmanoor Metals ERP
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.6.
+Phase 1: leads, customers, measurements with revisions, quotations and payment tracking.
+Angular front end; hosted Supabase (Postgres, Auth, Storage) back end. No local database is needed.
 
-## Development server
+## Set up
 
-To start a local development server, run:
+1. Create a project at supabase.com.
+2. Apply the database schema, either way:
+   - CLI: `npx supabase login`, `npx supabase link --project-ref <ref>`, `npx supabase db push`
+   - or paste the three files in `supabase/migrations/` into the dashboard's SQL editor, in order.
+3. Put the project URL and anon (publishable) key in `src/environments/environment.ts`.
+4. `npm install`, then `npm start` and open http://localhost:4200.
 
-```bash
-ng serve
-```
+The first person to use "Request access" on the sign-in page becomes the admin.
+Everyone after that is inactive until an admin activates them in Settings and picks a role.
+If the project has "Confirm email" switched on (Authentication > Sign In / Providers), new
+users must click the emailed link before they can sign in.
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## Roles
 
-## Code scaffolding
+| Role | Can do |
+|---|---|
+| Admin | Everything, including settings and users |
+| Approver | Sales work, plus approving a measurement revision as final and editing rates |
+| Sales | Leads, projects, measurements, quotes |
+| Measurement | Leads, projects, measurements |
+| Accounts | Record payments |
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Checks
 
 ```bash
-ng test
+npm test -- --watch=false     # unit tests: quote maths, message links, Excel validation, PDF
+npm run build
 ```
 
-## Running end-to-end tests
+`supabase/tests/` holds two database checks that need a throwaway local stack
+(`npx supabase start`, Docker). Do not point them at the live project: `e2e.mjs` creates
+test users and records.
 
-For end-to-end (e2e) testing, run:
+## Deploy
 
-```bash
-ng e2e
-```
+Every push to `main` runs the tests, builds, and publishes to GitHub Pages at
+https://erp.chemmanoormetals.com (see `.github/workflows/deploy.yml`). The domain needs a
+DNS record: `CNAME erp -> sajinct.github.io`.
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Database changes are separate: add a file to `supabase/migrations/` and run
+`npx supabase db push`.
 
-## Additional Resources
+## Layout
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `supabase/migrations/` schema, business rules and access policies, seed data
+- `src/app/core/` Supabase client, sign-in and roles, data types
+- `src/app/shared/` message links, quote maths, Excel, PDF, file attachments
+- `src/app/features/` one folder per screen

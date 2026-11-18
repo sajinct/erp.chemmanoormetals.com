@@ -1,1 +1,199 @@
-/* You can add global styles to this file, and also import other style files */
+@use '@angular/material' as mat;
+
+html {
+  color-scheme: light;
+  @include mat.theme(
+    (
+      color: mat.$azure-palette,
+      typography: Roboto,
+      density: -1,
+    )
+  );
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface);
+}
+
+a {
+  color: var(--mat-sys-primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* Page layout */
+.page {
+  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.page-head h1 {
+  font-size: 22px;
+  font-weight: 500;
+  margin: 0;
+  flex: 1 1 auto;
+}
+.sub {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 13px;
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.spacer {
+  flex: 1 1 auto;
+}
+.card {
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0 0 12px;
+}
+.empty {
+  color: var(--mat-sys-on-surface-variant);
+  padding: 24px 0;
+  text-align: center;
+}
+
+/* Forms: fields flow into as many columns as fit */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0 12px;
+}
+.form-grid .wide {
+  grid-column: 1 / -1;
+}
+.filters mat-form-field {
+  width: 180px;
+}
+mat-dialog-content.form-grid {
+  padding-top: 8px !important;
+  min-width: min(560px, 80vw);
+}
+
+/* Tables scroll sideways on phones instead of breaking the page */
+.table-wrap {
+  overflow-x: auto;
+}
+table.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.tbl th,
+.tbl td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  white-space: nowrap;
+}
+.tbl td.wrap {
+  white-space: normal;
+  min-width: 180px;
+}
+.tbl th {
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 12px;
+}
+.tbl .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.tbl tbody tr.link {
+  cursor: pointer;
+}
+.tbl tbody tr.link:hover {
+  background: var(--mat-sys-surface-container);
+}
+.tbl input,
+.tbl select {
+  font: inherit;
+  padding: 6px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 6px;
+  background: var(--mat-sys-surface);
+  color: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 70px;
+}
+.tbl input.narrow {
+  min-width: 60px;
+  width: 80px;
+  text-align: right;
+}
+
+/* Status chips */
+.chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #e3e6ea;
+  color: #2f3740;
+}
+.chip.new,
+.chip.draft {
+  background: #e3e6ea;
+  color: #2f3740;
+}
+.chip.contacted,
+.chip.submitted,
+.chip.sent {
+  background: #d8e7fb;
+  color: #0b4a8f;
+}
+.chip.measurement,
+.chip.measurement_scheduled {
+  background: #fdebc8;
+  color: #7a4b00;
+}
+.chip.quoted {
+  background: #e7defa;
+  color: #4a2a8a;
+}
+.chip.confirmed,
+.chip.final,
+.chip.accepted {
+  background: #d3f0dc;
+  color: #135c2c;
+}
+.chip.lost,
+.chip.cancelled,
+.chip.rejected {
+  background: #f9dcdc;
+  color: #8a1f1f;
+}
+.error-text {
+  color: var(--mat-sys-error);
+  font-size: 13px;
+}
