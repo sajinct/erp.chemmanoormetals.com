@@ -4,4 +4,6 @@
 export const environment = {
   supabaseUrl: 'https://daqwfqeucgxntkskopau.supabase.co',
   supabaseKey: 'sb_publishable_U2T87s02AxieCFJOnXd83g_7wQ72VYV',
+  // Public address of this app; links sent to customers are built from it.
+  appUrl: 'https://erp.chemmanoormetals.com',
 };

@@ -202,6 +202,11 @@ export interface Quote {
   terms: string | null;
   valid_until: string | null;
   pdf_path: string | null;
+  /** Random code in the short link sent to the customer. */
+  share_code: string | null;
+  /** Time-limited storage link the short link forwards to. */
+  share_url: string | null;
+  share_expires_at: string | null;
   created_at: string;
   quote_items?: QuoteItem[];
 }

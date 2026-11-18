@@ -1,11 +1,26 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router, Routes } from '@angular/router';
 import { authGuard, roleGuard } from './core/auth';
 
+/**
+ * Customers get links of the form /?q=CODE: the bare address always loads on
+ * static hosting, where a deep path would first answer "not found". This
+ * sends such a visit to the public quotation page instead of the sign-in.
+ */
+const shareLinkGuard: CanActivateFn = (route) => {
+  const code = route.queryParamMap.get('q');
+  return code ? inject(Router).createUrlTree(['/q', code]) : true;
+};
+
 export const routes: Routes = [
+  {
+    path: 'q/:code',
+    loadComponent: () => import('./features/quotes/quote-link').then((m) => m.QuoteLink),
+  },
   { path: 'login', loadComponent: () => import('./features/auth/login').then((m) => m.Login) },
   {
     path: '',
-    canActivate: [authGuard],
+    canActivate: [shareLinkGuard, authGuard],
     loadComponent: () => import('./shell').then((m) => m.Shell),
     children: [
       {

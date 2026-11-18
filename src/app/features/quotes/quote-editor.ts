@@ -4,10 +4,15 @@ import { Auth } from '../../core/auth';
 import { Product, Project, QUOTE_STATUSES, Quote, QuoteItem, Settings, UNITS } from '../../core/models';
 import { BUCKET, Supabase } from '../../core/supabase';
 import { downloadBlob } from '../../shared/excel';
-import { fillTemplate, mailLink, money, waLink } from '../../shared/messaging';
+import { environment } from '../../../environments/environment';
+import { fillTemplate, mailLink, money, quoteShareLink, shareCode, waLink } from '../../shared/messaging';
 import { bankLines, pdfBlob, quoteDocument } from '../../shared/pdf';
 import { Totals, quoteTotals, round2 } from '../../shared/quote-calc';
 import { UI } from '../../shared/ui';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** How long a link sent to a customer keeps working. */
+const SHARE_DAYS = 30;
 
 /**
  * A quotation. While it is a draft the lines can be edited; issuing it stores
@@ -59,7 +64,7 @@ import { UI } from '../../shared/ui';
                 <a mat-stroked-button [href]="mailHref()"><mat-icon>mail</mat-icon> Email</a>
               }
               <span class="sub">
-                The message carries a link to the PDF (valid for 30 days) and the bank details for the advance.
+                The message carries a short link to the PDF (it works for 30 days) and the bank details for the advance.
               </span>
             </div>
           </div>
@@ -215,7 +220,7 @@ export class QuoteEditor {
   protected readonly project = signal<Project | null>(null);
   protected readonly products = signal<Product[]>([]);
   protected readonly busy = signal(false);
-  /** Share link to the stored PDF; empty until the quote has been issued. */
+  /** Short link to the stored PDF; empty until the quote has been issued. */
   protected readonly pdfUrl = signal('');
   private readonly settings = signal<Settings | null>(null);
 
@@ -237,7 +242,33 @@ export class QuoteEditor {
     );
     this.items.set((q.quote_items ?? []).slice().sort((a, b) => a.sort - b.sort));
     this.quote.set(q);
-    this.pdfUrl.set(q.pdf_path && q.status !== 'draft' ? await this.sb.signedUrl(q.pdf_path) : '');
+    this.pdfUrl.set(q.pdf_path && q.status !== 'draft' ? await this.shareLink(q) : '');
+  }
+
+  /**
+   * The short link for an issued quote. The storage link behind it lasts 30
+   * days, so it is renewed here whenever it is missing or within a week of
+   * expiring; the code, and so the link already sent, stays the same.
+   */
+  private async shareLink(q: Quote): Promise<string> {
+    const weekAhead = Date.now() + 7 * DAY_MS;
+    const fresh = q.share_code && q.share_expires_at && Date.parse(q.share_expires_at) > weekAhead;
+    if (fresh) return quoteShareLink(environment.appUrl, q.share_code!);
+    // Staff who cannot edit quotes cannot renew the link; fall back to what exists.
+    if (!this.canEdit) {
+      return q.share_code ? quoteShareLink(environment.appUrl, q.share_code) : this.sb.signedUrl(q.pdf_path!);
+    }
+    const share = await this.newShare(q.pdf_path!, q.share_code);
+    await this.sb.run(this.sb.client.from('quotes').update(share).eq('id', q.id));
+    return quoteShareLink(environment.appUrl, share.share_code);
+  }
+
+  private async newShare(path: string, existingCode: string | null) {
+    return {
+      share_code: existingCode ?? shareCode(),
+      share_url: await this.sb.signedUrl(path, (SHARE_DAYS * DAY_MS) / 1000),
+      share_expires_at: new Date(Date.now() + SHARE_DAYS * DAY_MS).toISOString(),
+    };
   }
 
   protected editable(): boolean {
@@ -351,8 +382,12 @@ export class QuoteEditor {
         .from(BUCKET)
         .upload(path, blob, { contentType: 'application/pdf' });
       if (error) throw new Error(error.message);
+      const share = await this.newShare(path, quote.share_code);
       await this.sb.run(
-        this.sb.client.from('quotes').update({ status: 'sent', pdf_path: path }).eq('id', quote.id),
+        this.sb.client
+          .from('quotes')
+          .update({ status: 'sent', pdf_path: path, ...share })
+          .eq('id', quote.id),
       );
       this.sb.info('Quote issued. Send it to the customer with the buttons above.');
       await this.load();

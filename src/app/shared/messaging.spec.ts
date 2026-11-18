@@ -1,4 +1,13 @@
-import { addDays, fillTemplate, mailLink, money, normalizePhone, waLink } from './messaging';
+import {
+  addDays,
+  fillTemplate,
+  mailLink,
+  money,
+  normalizePhone,
+  quoteShareLink,
+  shareCode,
+  waLink,
+} from './messaging';
 
 describe('messaging', () => {
   it('normalises Indian phone numbers', () => {
@@ -30,6 +39,18 @@ describe('messaging', () => {
   it('formats money with Indian grouping', () => {
     expect(money(125000)).toBe('1,25,000.00');
     expect(money(null)).toBe('0.00');
+  });
+
+  it('makes unambiguous, different share codes', () => {
+    const codes = new Set(Array.from({ length: 200 }, () => shareCode()));
+    expect(codes.size).toBe(200);
+    for (const code of codes) expect(code).toMatch(/^[A-HJ-NP-Za-km-z2-9]{10}$/);
+  });
+
+  it('builds the short quote link', () => {
+    expect(quoteShareLink('https://erp.chemmanoormetals.com/', 'Ab3xK9pQw2')).toBe(
+      'https://erp.chemmanoormetals.com/?q=Ab3xK9pQw2',
+    );
   });
 
   it('adds days across a month end', () => {
