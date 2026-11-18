@@ -23,7 +23,13 @@ export interface UserManagementServices {
   getProfile(id: string): Promise<StaffProfile | null>;
   create(input: CreateStaff): Promise<StaffProfile>;
   update(id: string, changes: ProfileChanges): Promise<StaffProfile>;
+  /** Sets a new password and ends every existing sign-in of that user. */
+  resetPassword(id: string, password: string): Promise<void>;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const validPassword = (value: unknown): value is string =>
+  typeof value === 'string' && value.length >= 12 && value.length <= 128;
 
 export class UserManagementError extends Error {
   constructor(
@@ -75,8 +81,25 @@ export function userManagementHandler(
       }
       if (!body || typeof body !== 'object' || Array.isArray(body))
         return json(400, { error: 'Send valid user details.' });
-      if (body['action'] !== 'create' && body['action'] !== 'update')
-        return json(400, { error: 'Choose create or update.' });
+      if (!['create', 'update', 'reset_password'].includes(body['action'] as string))
+        return json(400, { error: 'Choose create, update or reset_password.' });
+      if (body['action'] === 'reset_password') {
+        const id = body['id'];
+        if (typeof id !== 'string' || !UUID.test(id))
+          return json(400, { error: 'Choose a valid user.' });
+        // An admin's own password goes through "Change password", which asks
+        // for the current one; this route would let a borrowed session skip that.
+        if (id === caller.id)
+          return json(409, {
+            error: 'Use Change password in your account menu for your own password.',
+          });
+        if (!validPassword(body['password']))
+          return json(400, { error: 'Use a new password between 12 and 128 characters.' });
+        const target = await services.getProfile(id);
+        if (!target) return json(404, { error: 'This user no longer exists.' });
+        await services.resetPassword(id, body['password']);
+        return json(200, { user: target });
+      }
       const name = typeof body['full_name'] === 'string' ? body['full_name'].trim() : '';
       const phone = typeof body['phone'] === 'string' ? body['phone'].trim() : '';
       const role = body['role'];
@@ -97,16 +120,13 @@ export function userManagementHandler(
         const password = body['password'];
         if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
           return json(400, { error: 'Enter a valid email address.' });
-        if (typeof password !== 'string' || password.length < 12 || password.length > 128)
+        if (!validPassword(password))
           return json(400, { error: 'Use an initial password between 12 and 128 characters.' });
         const user = await services.create({ ...changes, email, password });
         return json(201, { user });
       }
       const id = body['id'];
-      if (
-        typeof id !== 'string' ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
-      )
+      if (typeof id !== 'string' || !UUID.test(id))
         return json(400, { error: 'Choose a valid user.' });
       const target = await services.getProfile(id);
       if (!target) return json(404, { error: 'This user no longer exists.' });

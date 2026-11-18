@@ -3,6 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { AdminUsers } from '../../core/admin-users';
 import { Auth } from '../../core/auth';
 import { Profile, Role, ROLES } from '../../core/models';
+import { generatePassword } from '../../core/password';
 import { UI } from '../../shared/ui';
 
 export const ROLE_DESCRIPTIONS: Record<Role, string> = {
@@ -179,9 +180,7 @@ export class UserFormDialog {
     this.ref.close();
   }
   protected generatePassword(): void {
-    const bytes = crypto.getRandomValues(new Uint8Array(18));
-    this.form.password =
-      'Aa7!' + Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    this.form.password = generatePassword();
     this.showPassword.set(true);
   }
   protected async save(): Promise<void> {

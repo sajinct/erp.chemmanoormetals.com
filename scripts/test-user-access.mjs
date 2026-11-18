@@ -30,6 +30,12 @@ try {
     create policy profiles_update on public.profiles for update to authenticated using (public.app_role() = 'admin') with check (public.app_role() = 'admin');
   `);
   await db.exec(await sql('supabase/migrations/20261118000003_admin_user_management.sql'));
+  await db.exec(`
+    create role anon;
+    create role service_role;
+    create table auth.sessions (id serial primary key, user_id uuid not null);
+  `);
+  await db.exec(await sql('supabase/migrations/20261118000004_revoke_user_sessions.sql'));
   const row = async (id) =>
     (
       await db.query('select full_name, phone, role, active from public.profiles where id = $1', [
@@ -142,8 +148,32 @@ try {
     () => db.query('update public.profiles set active = false where id = $1', [admin]),
     /At least one active administrator/,
   );
+
+  // Admin password reset: the target's sign-ins end, nobody else's, and only
+  // the service key (held by the manage-users function) may do it.
+  await db.query('insert into auth.sessions (user_id) values ($1), ($1), ($2)', [staff, admin]);
+  const sessions = async (id) =>
+    (await db.query('select count(*)::int as n from auth.sessions where user_id = $1', [id]))
+      .rows[0].n;
+  await db.exec('grant usage on schema public to anon, service_role');
+  for (const role of ['authenticated', 'anon']) {
+    await db.exec(`set role ${role}`);
+    await assert.rejects(
+      () => db.query('select public.revoke_user_sessions($1)', [staff]),
+      /permission denied/,
+      `${role} must not be able to end sessions`,
+    );
+    await db.exec('reset role');
+  }
+  assert.equal(await sessions(staff), 2);
+  await db.exec('set role service_role');
+  await db.query('select public.revoke_user_sessions($1)', [staff]);
+  await db.exec('reset role');
+  assert.equal(await sessions(staff), 0, 'The reset user is signed out everywhere');
+  assert.equal(await sessions(admin), 1, 'Other users stay signed in');
+
   console.log(
-    'Passed PostgreSQL user-access checks: atomic creation, metadata isolation, role permissions, self-lockout and last-admin protection.',
+    'Passed PostgreSQL user-access checks: atomic creation, metadata isolation, role permissions, self-lockout, last-admin protection and session revocation on password reset.',
   );
 } finally {
   await db.close();

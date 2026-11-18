@@ -5,6 +5,7 @@ import { Profile, ROLES } from '../../core/models';
 import { Supabase } from '../../core/supabase';
 import { paginate } from '../../shared/pagination';
 import { UI } from '../../shared/ui';
+import { ResetPasswordDialog } from './reset-password-dialog';
 import { ROLE_DESCRIPTIONS, UserFormDialog } from './user-form-dialog';
 
 @Component({
@@ -134,6 +135,15 @@ import { ROLE_DESCRIPTIONS, UserFormDialog } from './user-form-dialog';
                   >
                     <mat-icon>edit</mat-icon>Edit
                   </button>
+                  @if (user.id !== me) {
+                    <button
+                      mat-button
+                      (click)="resetPassword(user)"
+                      [attr.aria-label]="'Reset password for ' + user.full_name"
+                    >
+                      <mat-icon>lock_reset</mat-icon>Reset password
+                    </button>
+                  }
                 </td>
               </tr>
             } @empty {
@@ -350,6 +360,15 @@ export class UsersPage {
     } finally {
       this.loading.set(false);
     }
+  }
+  protected resetPassword(user: Profile): void {
+    this.dialog
+      .open(ResetPasswordDialog, { data: user, maxWidth: '95vw' })
+      .afterClosed()
+      .subscribe((done: boolean | undefined) => {
+        if (done)
+          this.sb.info(`Password reset for ${user.full_name}. Share the new password securely.`);
+      });
   }
   protected edit(user: Profile | null = null): void {
     this.dialog

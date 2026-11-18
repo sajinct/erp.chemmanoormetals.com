@@ -48,17 +48,9 @@ import { APP_VERSION } from '../../core/version';
             height="70"
             alt="Chemmanoor Metals — trusted protection"
           />
-          <div class="eyebrow">
-            <span class="line"></span>{{ mode() === 'in' ? 'Staff sign in' : 'Request access' }}
-          </div>
-          <h1>{{ mode() === 'in' ? 'Welcome back.' : 'Join the workspace.' }}</h1>
-          <p class="description">
-            {{
-              mode() === 'in'
-                ? 'Sign in to keep your business moving.'
-                : 'Request an account to work with your team.'
-            }}
-          </p>
+          <div class="eyebrow"><span class="line"></span>{{ copy[mode()].eyebrow }}</div>
+          <h1>{{ copy[mode()].title }}</h1>
+          <p class="description">{{ copy[mode()].description }}</p>
 
           @if (auth.signedIn() && !auth.active()) {
             <p>
@@ -86,31 +78,38 @@ import { APP_VERSION } from '../../core/version';
                 autocomplete="username"
               />
             </mat-form-field>
-            <mat-form-field>
-              <mat-label>Password</mat-label>
-              <input
-                matInput
-                [type]="showPassword() ? 'text' : 'password'"
-                name="password"
-                [(ngModel)]="password"
-                required
-                minlength="6"
-                [autocomplete]="mode() === 'in' ? 'current-password' : 'new-password'"
-              />
-              <button
-                mat-icon-button
-                matSuffix
-                type="button"
-                (click)="showPassword.set(!showPassword())"
-                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
-                [attr.aria-pressed]="showPassword()"
-              >
-                <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+            @if (mode() !== 'forgot') {
+              <mat-form-field>
+                <mat-label>Password</mat-label>
+                <input
+                  matInput
+                  [type]="showPassword() ? 'text' : 'password'"
+                  name="password"
+                  [(ngModel)]="password"
+                  required
+                  minlength="6"
+                  [autocomplete]="mode() === 'in' ? 'current-password' : 'new-password'"
+                />
+                <button
+                  mat-icon-button
+                  matSuffix
+                  type="button"
+                  (click)="showPassword.set(!showPassword())"
+                  [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                  [attr.aria-pressed]="showPassword()"
+                >
+                  <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                </button>
+                @if (mode() === 'up') {
+                  <mat-hint>Use at least 6 characters.</mat-hint>
+                }
+              </mat-form-field>
+            }
+            @if (mode() === 'in') {
+              <button mat-button type="button" class="forgot" (click)="setMode('forgot')">
+                Forgot password?
               </button>
-              @if (mode() === 'up') {
-                <mat-hint>Use at least 6 characters.</mat-hint>
-              }
-            </mat-form-field>
+            }
             @if (message()) {
               <p
                 class="message"
@@ -122,16 +121,17 @@ import { APP_VERSION } from '../../core/version';
               </p>
             }
             <button mat-flat-button type="submit" [disabled]="busy() || form.invalid">
-              {{
-                busy()
-                  ? 'Please wait…'
-                  : mode() === 'in'
-                    ? 'Sign in to workspace'
-                    : 'Request access'
+              {{ busy() ? 'Please wait…' : copy[mode()].action
               }}<mat-icon iconPositionEnd>arrow_forward</mat-icon>
             </button>
-            <button mat-button type="button" (click)="toggle()">
-              {{ mode() === 'in' ? 'New here? Request access' : 'Have an account? Sign in' }}
+            <button mat-button type="button" (click)="setMode(mode() === 'in' ? 'up' : 'in')">
+              {{
+                mode() === 'in'
+                  ? 'New here? Request access'
+                  : mode() === 'up'
+                    ? 'Have an account? Sign in'
+                    : 'Back to sign in'
+              }}
             </button>
           }
           <div class="access-note">
@@ -191,6 +191,10 @@ import { APP_VERSION } from '../../core/version';
     .box button[type='submit'] {
       min-height: 48px;
       margin: 8px 0;
+    }
+    .forgot {
+      align-self: flex-end;
+      margin-top: -6px;
     }
     .tagline {
       margin: 0;
@@ -384,7 +388,27 @@ export class Login {
   protected readonly version = APP_VERSION;
   private readonly router = inject(Router);
 
-  protected readonly mode = signal<'in' | 'up'>('in');
+  protected readonly mode = signal<'in' | 'up' | 'forgot'>('in');
+  protected readonly copy = {
+    in: {
+      eyebrow: 'Staff sign in',
+      title: 'Welcome back.',
+      description: 'Sign in to keep your business moving.',
+      action: 'Sign in to workspace',
+    },
+    up: {
+      eyebrow: 'Request access',
+      title: 'Join the workspace.',
+      description: 'Request an account to work with your team.',
+      action: 'Request access',
+    },
+    forgot: {
+      eyebrow: 'Forgot password',
+      title: 'Reset your password.',
+      description: 'Enter your work email and we’ll send a link to choose a new password.',
+      action: 'Email me a reset link',
+    },
+  };
   protected readonly busy = signal(false);
   protected readonly message = signal('');
   protected readonly confirmation = signal(false);
@@ -397,17 +421,24 @@ export class Login {
     void this.auth.init().then(() => {
       if (this.auth.active()) void this.router.navigateByUrl('/');
     });
+    // An emailed link that expired or was already used sends people here.
+    if (this.auth.takeLinkError()) {
+      this.message.set(
+        'That email link has expired or was already used. If you were resetting your password, choose “Forgot password?” to get a new link.',
+      );
+    }
   }
 
-  protected toggle(): void {
-    this.mode.update((m) => (m === 'in' ? 'up' : 'in'));
+  protected setMode(mode: 'in' | 'up' | 'forgot'): void {
+    this.mode.set(mode);
     this.message.set('');
     this.confirmation.set(false);
   }
 
   protected async submit(): Promise<void> {
     if (this.busy()) return;
-    if (!this.email || !this.password || (this.mode() === 'up' && !this.name)) {
+    const mode = this.mode();
+    if (!this.email || (mode !== 'forgot' && !this.password) || (mode === 'up' && !this.name)) {
       this.message.set('Please fill in every field.');
       return;
     }
@@ -415,8 +446,21 @@ export class Login {
     this.message.set('');
     this.confirmation.set(false);
     try {
+      if (mode === 'forgot') {
+        const failed = await this.auth.requestPasswordReset(this.email.trim());
+        if (failed) {
+          this.message.set(failed);
+        } else {
+          this.confirmation.set(true);
+          // Deliberately the same whether or not the address has an account.
+          this.message.set(
+            `If ${this.email.trim()} has an account, a reset link is on its way. It can take a few minutes; check the spam folder too.`,
+          );
+        }
+        return;
+      }
       const error =
-        this.mode() === 'in'
+        mode === 'in'
           ? await this.auth.signIn(this.email, this.password)
           : await this.auth.signUp(this.email, this.password, this.name);
       if (error) {

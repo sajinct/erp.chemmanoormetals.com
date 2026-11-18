@@ -13,7 +13,13 @@ const fields = 'id,full_name,email,phone,role,active';
 function fail(error: { code?: string; message: string }): never {
   if (['email_exists', 'user_already_exists'].includes(error.code || ''))
     throw new UserManagementError(409, 'A user with this email already exists.');
-  if (['weak_password', 'validation_failed', 'email_address_invalid'].includes(error.code || ''))
+  if (error.code === 'user_not_found')
+    throw new UserManagementError(404, 'This user no longer exists.');
+  if (
+    ['weak_password', 'same_password', 'validation_failed', 'email_address_invalid'].includes(
+      error.code || '',
+    )
+  )
     throw new UserManagementError(400, error.message);
   if (error.code === 'P0001') throw new UserManagementError(409, error.message);
   throw new UserManagementError(500, 'The user could not be saved. Please try again.');
@@ -59,6 +65,16 @@ Deno.serve(
             'The account was created. Reload the user list before trying again.',
           );
         return user;
+      },
+      async resetPassword(id, password) {
+        const { error } = await admin.auth.admin.updateUserById(id, { password });
+        if (error) fail(error);
+        const { error: sessionError } = await admin.rpc('revoke_user_sessions', { p_user: id });
+        if (sessionError)
+          throw new UserManagementError(
+            500,
+            'The password was changed, but existing sign-ins could not be ended. Try again.',
+          );
       },
       async update(id, changes) {
         const { data, error } = await admin

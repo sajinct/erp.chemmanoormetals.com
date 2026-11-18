@@ -2,11 +2,15 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Auth } from './core/auth';
 import { ROLES } from './core/models';
+import { Supabase } from './core/supabase';
+import { ChangePasswordDialog } from './features/auth/change-password-dialog';
 import { LabelPipe } from './shared/ui';
 import { AppTools } from './shared/app-tools';
 import { APP_VERSION } from './core/version';
@@ -20,6 +24,7 @@ import { APP_VERSION } from './core/version';
     MatSidenavModule,
     MatIconModule,
     MatButtonModule,
+    MatMenuModule,
     LabelPipe,
     FormsModule,
     AppTools,
@@ -92,11 +97,29 @@ import { APP_VERSION } from './core/version';
             </button>
           </form>
           <app-tools />
-          <span class="avatar" aria-hidden="true">{{ initials() }}</span>
-          <span class="who">
-            <strong>{{ auth.profile()?.full_name }}</strong>
-            <span>{{ auth.role() | label: roles }}</span>
-          </span>
+          <button
+            type="button"
+            class="account"
+            [matMenuTriggerFor]="account"
+            aria-label="Your account"
+            title="Your account"
+          >
+            <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+            <span class="who">
+              <strong>{{ auth.profile()?.full_name }}</strong>
+              <span>{{ auth.role() | label: roles }}</span>
+            </span>
+            <mat-icon class="account-caret" aria-hidden="true">expand_more</mat-icon>
+          </button>
+          <mat-menu #account="matMenu" xPosition="before">
+            <div class="app-menu-title">{{ auth.profile()?.email }}</div>
+            <button mat-menu-item (click)="changePassword()">
+              <mat-icon>key</mat-icon><span>Change password</span>
+            </button>
+            <button mat-menu-item (click)="signOut()">
+              <mat-icon>logout</mat-icon><span>Sign out</span>
+            </button>
+          </mat-menu>
           <button mat-icon-button (click)="signOut()" aria-label="Sign out" title="Sign out">
             <mat-icon>logout</mat-icon>
           </button>
@@ -192,6 +215,35 @@ import { APP_VERSION } from './core/version';
       background: var(--surface);
       padding: 4px 8px;
       border-radius: 2px;
+    }
+    .account {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 6px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+    .bar .account {
+      color: var(--brand-ink);
+    }
+    .account:hover,
+    .account[aria-expanded='true'] {
+      background: var(--surface-subtle);
+    }
+    .account:focus-visible {
+      outline: 2px solid #149cc2;
+      outline-offset: 2px;
+    }
+    .account-caret {
+      width: 18px;
+      height: 18px;
+      font-size: 18px;
+      color: var(--text-soft);
     }
     .who {
       display: flex;
@@ -365,8 +417,12 @@ import { APP_VERSION } from './core/version';
         gap: 5px;
       }
       .quick-search,
-      .who {
+      .who,
+      .account-caret {
         display: none;
+      }
+      .account {
+        padding: 2px;
       }
       .avatar {
         width: 30px;
@@ -378,6 +434,8 @@ import { APP_VERSION } from './core/version';
 export class Shell {
   protected readonly auth = inject(Auth);
   private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
+  private readonly sb = inject(Supabase);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly roles = ROLES;
   protected readonly version = APP_VERSION;
@@ -422,6 +480,15 @@ export class Shell {
 
   protected findLead(): void {
     void this.router.navigate(['/leads'], { queryParams: { search: this.search.trim() || null } });
+  }
+
+  protected changePassword(): void {
+    this.dialog
+      .open(ChangePasswordDialog, { autoFocus: 'first-tabbable' })
+      .afterClosed()
+      .subscribe((changed) => {
+        if (changed) this.sb.info('Password changed. Your other devices have been signed out.');
+      });
   }
 
   protected async signOut(): Promise<void> {

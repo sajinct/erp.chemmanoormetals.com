@@ -57,6 +57,7 @@ describe('Admin user-management API', () => {
       ),
       create: vi.fn().mockResolvedValue(staff),
       update: vi.fn().mockResolvedValue(staff),
+      resetPassword: vi.fn().mockResolvedValue(undefined),
     };
   });
 
@@ -175,6 +176,50 @@ describe('Admin user-management API', () => {
     const response = await handler(request(input));
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain('secret');
+  });
+
+  it('resets another user’s password without ever returning it', async () => {
+    const handler = userManagementHandler(services);
+    const response = await handler(
+      request({
+        action: 'reset_password',
+        id: staffId,
+        password: 'ReplacementPass9!',
+        role: 'admin',
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(services.resetPassword).toHaveBeenCalledWith(staffId, 'ReplacementPass9!');
+    expect(services.update).not.toHaveBeenCalled();
+    const text = await response.text();
+    expect(JSON.parse(text).user.id).toBe(staffId);
+    expect(text).not.toContain('ReplacementPass9!');
+  });
+
+  it('refuses unsafe password resets', async () => {
+    const handler = userManagementHandler(services);
+    const reset = (body: object) => handler(request({ action: 'reset_password', ...body }));
+    // Your own password must go through the current-password check instead.
+    expect((await reset({ id: adminId, password: 'ReplacementPass9!' })).status).toBe(409);
+    expect((await reset({ id: staffId, password: 'too-short' })).status).toBe(400);
+    expect((await reset({ id: staffId, password: 'x'.repeat(129) })).status).toBe(400);
+    expect((await reset({ id: staffId })).status).toBe(400);
+    expect((await reset({ id: 'not-a-user', password: 'ReplacementPass9!' })).status).toBe(400);
+    expect(
+      (await reset({ id: '00000000-0000-0000-0000-000000000009', password: 'ReplacementPass9!' }))
+        .status,
+    ).toBe(404);
+    expect(services.resetPassword).not.toHaveBeenCalled();
+  });
+
+  it('lets only active administrators reset passwords', async () => {
+    const handler = userManagementHandler(services);
+    vi.mocked(services.authenticate).mockResolvedValue({ id: staffId });
+    const response = await handler(
+      request({ action: 'reset_password', id: adminId, password: 'ReplacementPass9!' }),
+    );
+    expect(response.status).toBe(403);
+    expect(services.resetPassword).not.toHaveBeenCalled();
   });
 
   it('enforces origin, method, request size and JSON boundaries', async () => {

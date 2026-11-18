@@ -17,6 +17,10 @@ export const routes: Routes = [
     path: 'q/:code',
     loadComponent: () => import('./features/quotes/quote-link').then((m) => m.QuoteLink),
   },
+  {
+    path: 'reset-password',
+    loadComponent: () => import('./features/auth/reset-password').then((m) => m.ResetPassword),
+  },
   { path: 'login', loadComponent: () => import('./features/auth/login').then((m) => m.Login) },
   {
     path: '',

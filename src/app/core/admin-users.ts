@@ -23,6 +23,10 @@ export class AdminUsers {
   update(id: string, details: StaffDetails): Promise<Profile> {
     return this.request({ action: 'update', id, ...details });
   }
+  /** Sets a new password for another staff member and ends their existing sign-ins. */
+  resetPassword(id: string, password: string): Promise<Profile> {
+    return this.request({ action: 'reset_password', id, password });
+  }
 
   private async request(body: object): Promise<Profile> {
     const { data, error } = await this.sb.client.functions.invoke<{ user: Profile }>(
