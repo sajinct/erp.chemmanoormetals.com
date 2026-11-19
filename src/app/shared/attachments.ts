@@ -1,6 +1,8 @@
-import { Component, effect, inject, input, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { BUCKET, Supabase } from '../core/supabase';
 import { UI } from './ui';
+import { PhotoViewer } from './photo-viewer';
 
 interface Attachment {
   id: string;
@@ -15,31 +17,136 @@ interface Attachment {
   selector: 'app-attachments',
   imports: [UI],
   template: `
-    <div class="row">
+    <div class="files">
       @for (f of files(); track f.id) {
-        <span class="file">
-          <a href="" (click)="open($event, f)">
-            <mat-icon inline>{{ f.kind === 'photo' ? 'image' : 'description' }}</mat-icon>
-            {{ f.name }}
-          </a>
-          @if (!readonly()) {
-            <button mat-icon-button (click)="remove(f)" aria-label="Remove file" title="Remove">
-              <mat-icon>close</mat-icon>
+        @if (f.kind === 'photo') {
+          <div class="photo-file">
+            <button
+              class="thumbnail"
+              type="button"
+              (click)="viewPhoto(f)"
+              [attr.aria-label]="'View photo ' + f.name"
+              [title]="'View ' + f.name"
+            >
+              @if (thumbnails()[f.id]; as url) {
+                <img
+                  [src]="url"
+                  alt=""
+                  [loading]="f.id === firstPhotoId() ? 'eager' : 'lazy'"
+                  decoding="async"
+                  (error)="thumbnailFailed(f.id)"
+                />
+              } @else {
+                <mat-icon aria-hidden="true">image</mat-icon>
+              }
             </button>
-          }
-        </span>
+            <div class="caption">
+              <span [title]="f.name">{{ f.name }}</span>
+              @if (!readonly()) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  (click)="remove(f)"
+                  [attr.aria-label]="'Remove ' + f.name"
+                  title="Remove"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </div>
+          </div>
+        } @else {
+          <span class="file">
+            <a href="" (click)="open($event, f)">
+              <mat-icon inline>{{ f.kind === 'photo' ? 'image' : 'description' }}</mat-icon>
+              {{ f.name }}
+            </a>
+            @if (!readonly()) {
+              <button mat-icon-button (click)="remove(f)" aria-label="Remove file" title="Remove">
+                <mat-icon>close</mat-icon>
+              </button>
+            }
+          </span>
+        }
       } @empty {
         <span class="sub">No files yet.</span>
       }
     </div>
     @if (!readonly()) {
       <label class="upload">
-        <input type="file" multiple accept="image/*,.pdf,.dwg,.xlsx" (change)="upload($event)" [disabled]="busy()" />
-        <span class="sub">{{ busy() ? 'Uploading…' : 'Add site photos, sketches or documents (max 10 MB each)' }}</span>
+        <input
+          type="file"
+          multiple
+          accept="image/*,.pdf,.dwg,.xlsx"
+          (change)="upload($event)"
+          [disabled]="busy()"
+        />
+        <span class="sub">{{
+          busy() ? 'Uploading…' : 'Add site photos, sketches or documents (max 10 MB each)'
+        }}</span>
       </label>
     }
   `,
   styles: `
+    .files {
+      display: flex;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .photo-file {
+      width: 144px;
+      min-width: 0;
+      padding: 4px;
+      border: 1px solid var(--brand-line);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+    .thumbnail {
+      display: grid;
+      place-items: center;
+      width: 100%;
+      aspect-ratio: 4/3;
+      padding: 0;
+      border: 0;
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      cursor: zoom-in;
+    }
+    .thumbnail img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .thumbnail:focus-visible {
+      outline: 2px solid var(--brand-orange);
+      outline-offset: 2px;
+    }
+    .caption {
+      display: flex;
+      align-items: center;
+      min-height: 40px;
+      padding-left: 6px;
+      gap: 2px;
+    }
+    .caption span {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .caption button {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      padding: 8px;
+    }
     .file {
       display: inline-flex;
       align-items: center;
@@ -63,18 +170,28 @@ export class Attachments {
   readonly readonly = input(false);
 
   private readonly sb = inject(Supabase);
+  private readonly dialog = inject(MatDialog);
+  private generation = 0;
   protected readonly files = signal<Attachment[]>([]);
+  protected readonly firstPhotoId = computed(
+    () => this.files().find((f) => f.kind === 'photo')?.id,
+  );
+  protected readonly thumbnails = signal<Record<string, string>>({});
   protected readonly busy = signal(false);
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      this.generation++;
+    });
     effect(() => {
       this.projectId();
       this.measurementId();
-      void this.load();
+      void this.load().catch(() => {});
     });
   }
 
   private async load(): Promise<void> {
+    const generation = ++this.generation;
     let query = this.sb.client
       .from('attachments')
       .select('*')
@@ -82,7 +199,40 @@ export class Attachments {
       .order('created_at');
     const mid = this.measurementId();
     if (mid) query = query.eq('measurement_id', mid);
-    this.files.set(await this.sb.run<Attachment[]>(query));
+    const files = await this.sb.run<Attachment[]>(query);
+    if (generation !== this.generation) return;
+    this.files.set(files);
+    this.thumbnails.set({});
+    await Promise.allSettled(
+      files
+        .filter((f) => f.kind === 'photo')
+        .map(async (f) => {
+          const url = await this.sb.signedUrl(f.path, 3600);
+          if (generation === this.generation)
+            this.thumbnails.update((urls) => ({ ...urls, [f.id]: url }));
+        }),
+    );
+  }
+
+  protected thumbnailFailed(id: string) {
+    this.thumbnails.update((urls) => {
+      const next = { ...urls };
+      delete next[id];
+      return next;
+    });
+  }
+  protected viewPhoto(file: Attachment) {
+    const photos = this.files().filter((f) => f.kind === 'photo');
+    const index = photos.findIndex((f) => f.id === file.id);
+    if (index < 0) return;
+    this.dialog.open(PhotoViewer, {
+      data: { photos, index },
+      width: '1100px',
+      maxWidth: '96vw',
+      maxHeight: '95dvh',
+      autoFocus: 'first-tabbable',
+      ariaLabel: 'Photo viewer',
+    });
   }
 
   protected async upload(event: Event): Promise<void> {
