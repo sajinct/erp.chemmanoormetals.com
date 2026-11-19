@@ -59,6 +59,14 @@ database access policies, even for existing sessions; staff can refresh to updat
 
 ## Checks
 
+Quotation pricing uses cost build-up: the audited perforated-shutter workbook model or manual
+cost categories for other products. The customer proposal has editable commercial, technical and
+payment sections. See [quotation costing](docs/quotation-costing.md) for the formula audit,
+price reconciliation and workflow. Apply the quotation migration with `npx supabase db push --remote`
+before deploying v1.3.0. It adds the snapshot columns and transactional save RPC.
+
+Run `npm run test:quote-costing` for database totals, transaction rollback and quotation access checks.
+
 ```bash
 npm test -- --watch=false     # unit tests: quote maths, message links, Excel validation, PDF
 npm run test:user-access     # disposable in-memory PostgreSQL tests; never uses the live database

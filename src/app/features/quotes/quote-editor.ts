@@ -1,26 +1,44 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Auth } from '../../core/auth';
-import { Product, Project, QUOTE_STATUSES, Quote, QuoteItem, Settings, UNITS } from '../../core/models';
+import {
+  Measurement,
+  Project,
+  QUOTE_STATUSES,
+  Quote,
+  QuoteItem,
+  Settings,
+} from '../../core/models';
 import { BUCKET, Supabase } from '../../core/supabase';
 import { downloadBlob } from '../../shared/excel';
 import { environment } from '../../../environments/environment';
-import { fillTemplate, mailLink, money, quoteShareLink, shareCode, waLink } from '../../shared/messaging';
-import { bankLines, pdfBlob, quoteDocument } from '../../shared/pdf';
+import {
+  fillTemplate,
+  mailLink,
+  money,
+  quoteShareLink,
+  shareCode,
+  waLink,
+} from '../../shared/messaging';
+import { bankLines, pdfBlob, quoteDocument, proposalLogo } from '../../shared/pdf';
 import { Totals, quoteTotals, round2 } from '../../shared/quote-calc';
 import { UI } from '../../shared/ui';
+import { calculateCosting, newCosting, CostResult } from '../../shared/quote-costing';
+import { newProposal, proposalTerms } from '../../shared/proposal';
+import { CostingForm } from './costing-form';
+import { ProposalForm } from './proposal-form';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 /** How long a link sent to a customer keeps working. */
 const SHARE_DAYS = 30;
 
 /**
- * A quotation. While it is a draft the lines can be edited; issuing it stores
+ * A quotation. While it is a draft the costs can be edited; issuing it stores
  * the PDF and unlocks the WhatsApp and email send links.
  */
 @Component({
   selector: 'app-quote-editor',
-  imports: [UI],
+  imports: [UI, CostingForm, ProposalForm],
   template: `
     @if (quote(); as q) {
       <div class="page">
@@ -48,7 +66,9 @@ const SHARE_DAYS = 30;
                   Rejected
                 </button>
               }
-              <button mat-button (click)="setStatus('draft')" [disabled]="busy()">Revise (back to draft)</button>
+              <button mat-button (click)="setStatus('draft')" [disabled]="busy()">
+                Revise (back to draft)
+              </button>
             }
           }
         </div>
@@ -64,87 +84,108 @@ const SHARE_DAYS = 30;
                 <a mat-stroked-button [href]="mailHref()"><mat-icon>mail</mat-icon> Email</a>
               }
               <span class="sub">
-                The message carries a short link to the PDF (it works for 30 days) and the bank details for the advance.
+                The message carries a short link to the PDF (it works for 30 days) and the bank
+                details for the advance.
               </span>
             </div>
           </div>
         }
 
-        <div class="card">
-          <h2>Items</h2>
-          <div class="table-wrap">
-            <table class="tbl">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Description</th>
-                  <th>Qty</th>
-                  <th>Unit</th>
-                  <th>Rate</th>
-                  <th class="num">Amount</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (i of items(); track $index) {
-                  <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td class="wrap"><input [(ngModel)]="i.description" [disabled]="!editable()" /></td>
-                    <td><input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="i.qty" [disabled]="!editable()" /></td>
-                    <td>
-                      <select [(ngModel)]="i.unit" [disabled]="!editable()">
-                        @for (u of units; track u.value) {
-                          <option [ngValue]="u.value">{{ u.label }}</option>
-                        }
-                      </select>
-                    </td>
-                    <td><input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="i.rate" [disabled]="!editable()" /></td>
-                    <td class="num">{{ amount(i) | inr }}</td>
-                    <td>
-                      @if (editable()) {
-                        <button mat-icon-button (click)="removeItem($index)" aria-label="Remove line">
-                          <mat-icon>delete</mat-icon>
-                        </button>
-                      }
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="7" class="empty">No lines yet.</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+        @if (q.costing; as c) {
+          <div class="card">
+            <h2>Job costing</h2>
+            <app-costing-form [data]="c" [disabled]="!editable() || busy()" />
           </div>
-          @if (editable()) {
-            <div class="row add">
-              <select #pick class="picker" (change)="addItem(pick.value); pick.value = ''">
-                <option value="">+ Add line from rate list…</option>
-                <option value="blank">Blank line</option>
-                @for (p of products(); track p.id) {
-                  <option [value]="p.id">{{ p.name }} ({{ p.rate | inr }} / {{ p.unit | label: units }})</option>
+        }
+        <div class="card">
+          <h2>Commercial details</h2>
+          @if (pricingError()) {
+            <p class="error" role="alert">{{ pricingError() }}</p>
+          } @else {
+            <div class="table-wrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th class="num">Amount (Rs.)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (i of calculatedItems(); track $index) {
+                    <tr>
+                      <td class="wrap">{{ i.description }}</td>
+                      <td class="num">{{ i.amount | inr }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (costResult(); as result) {
+              @if (result.area) {
+                <p class="sub">Total shutter area: {{ result.area.toFixed(2) }} sq ft</p>
+              }
+              <details>
+                <summary>Internal cost breakdown</summary>
+                <p class="sub">
+                  These costs and profit assumptions are not included in the customer proposal.
+                </p>
+                @for (row of result.breakdown; track row.label) {
+                  <div class="row">
+                    <span class="spacer">{{ row.label }}</span><strong>{{
+                      row.amount | inr
+                    }}</strong>
+                  </div>
                 }
-              </select>
+              </details>
+            }
+            @let t = totals();
+            <div class="sums">
+              <div>
+                <span>Subtotal</span><span>{{ t.subtotal | inr }}</span>
+              </div>
+              <div>
+                <span>Discount (Rs.)</span>
+                <input
+                  class="narrow"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  aria-label="Discount (Rs.)"
+                  [(ngModel)]="q.discount"
+                  [disabled]="!editable()"
+                />
+              </div>
+              <div>
+                <span>Taxable value</span><span>{{ t.taxable | inr }}</span>
+              </div>
+              <div>
+                <span>GST %</span>
+                <input
+                  class="narrow"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  aria-label="GST percentage"
+                  [(ngModel)]="q.gst_percent"
+                  [disabled]="!editable()"
+                />
+              </div>
+              <div>
+                <span>GST</span><span>{{ t.gst_amount | inr }}</span>
+              </div>
+              <div class="grand">
+                <span>Total (Rs.)</span><span>{{ t.total | inr }}</span>
+              </div>
             </div>
           }
-
-          @let t = totals();
-          <div class="sums">
-            <div><span>Subtotal</span><span>{{ t.subtotal | inr }}</span></div>
-            <div>
-              <span>Discount (Rs.)</span>
-              <input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="q.discount" [disabled]="!editable()" />
-            </div>
-            <div><span>Taxable value</span><span>{{ t.taxable | inr }}</span></div>
-            <div>
-              <span>GST %</span>
-              <input class="narrow" type="number" min="0" step="0.01" [(ngModel)]="q.gst_percent" [disabled]="!editable()" />
-            </div>
-            <div><span>GST</span><span>{{ t.gst_amount | inr }}</span></div>
-            <div class="grand"><span>Total (Rs.)</span><span>{{ t.total | inr }}</span></div>
-          </div>
         </div>
 
+        @if (q.proposal; as proposal) {
+          <div class="card">
+            <h2>Proposal content</h2>
+            <app-proposal-form [data]="proposal" [disabled]="!editable() || busy()" />
+          </div>
+        }
         <div class="card">
           <div class="form-grid">
             <mat-form-field>
@@ -161,18 +202,6 @@ const SHARE_DAYS = 30;
     }
   `,
   styles: `
-    .add {
-      margin-top: 12px;
-    }
-    .picker {
-      font: inherit;
-      padding: 8px;
-      border-radius: 8px;
-      border: 1px solid var(--mat-sys-outline);
-      background: var(--mat-sys-surface);
-      color: inherit;
-      max-width: 100%;
-    }
     .sums {
       margin: 16px 0 0 auto;
       width: min(320px, 100%);
@@ -213,12 +242,10 @@ export class QuoteEditor {
 
   protected readonly canEdit = inject(Auth).can('admin', 'approver', 'sales');
   protected readonly statuses = QUOTE_STATUSES;
-  protected readonly units = UNITS;
 
   protected readonly quote = signal<Quote | null>(null);
   protected readonly items = signal<QuoteItem[]>([]);
   protected readonly project = signal<Project | null>(null);
-  protected readonly products = signal<Product[]>([]);
   protected readonly busy = signal(false);
   /** Short link to the stored PDF; empty until the quote has been issued. */
   protected readonly pdfUrl = signal('');
@@ -231,15 +258,26 @@ export class QuoteEditor {
     void this.sb
       .run<Project>(db.from('projects').select('*, customers(*)').eq('id', this.projectId).single())
       .then((p) => this.project.set(p));
-    void this.sb
-      .run<Product[]>(db.from('products').select('*').eq('active', true).order('category').order('name'))
-      .then((rows) => this.products.set(rows));
   }
 
   private async load(): Promise<void> {
     const q = await this.sb.run<Quote>(
       this.sb.client.from('quotes').select('*, quote_items(*)').eq('id', this.id).single(),
     );
+    if (q.status === 'draft' && !q.costing) {
+      const measurement = await this.sb.run<Measurement>(
+        this.sb.client
+          .from('measurements')
+          .select('*, measurement_items(*)')
+          .eq('id', q.measurement_id)
+          .single(),
+      );
+      q.costing = newCosting(measurement);
+    }
+    if (q.status === 'draft' && !q.proposal) {
+      q.proposal = newProposal();
+      q.terms = proposalTerms(q.terms || '');
+    }
     this.items.set((q.quote_items ?? []).slice().sort((a, b) => a.sort - b.sort));
     this.quote.set(q);
     this.pdfUrl.set(q.pdf_path && q.status !== 'draft' ? await this.shareLink(q) : '');
@@ -256,7 +294,9 @@ export class QuoteEditor {
     if (fresh) return quoteShareLink(environment.appUrl, q.share_code!);
     // Staff who cannot edit quotes cannot renew the link; fall back to what exists.
     if (!this.canEdit) {
-      return q.share_code ? quoteShareLink(environment.appUrl, q.share_code) : this.sb.signedUrl(q.pdf_path!);
+      return q.share_code
+        ? quoteShareLink(environment.appUrl, q.share_code)
+        : this.sb.signedUrl(q.pdf_path!);
     }
     const share = await this.newShare(q.pdf_path!, q.share_code);
     await this.sb.run(this.sb.client.from('quotes').update(share).eq('id', q.id));
@@ -281,36 +321,54 @@ export class QuoteEditor {
 
   protected totals(): Totals {
     const q = this.quote();
-    return quoteTotals(this.items(), q?.discount ?? 0, q?.gst_percent ?? 0);
+    return quoteTotals(this.calculatedItems(), q?.discount ?? 0, q?.gst_percent ?? 0);
   }
 
-  protected addItem(choice: string): void {
-    if (!choice) return;
-    const product = this.products().find((p) => p.id === choice);
-    this.items.update((list) => [
-      ...list,
-      {
-        product_id: product?.id ?? null,
-        description: product?.name ?? '',
-        qty: 1,
-        unit: product?.unit ?? 'nos',
-        rate: product?.rate ?? 0,
-        amount: product?.rate ?? 0,
-        sort: list.length,
-      },
-    ]);
+  protected pricingError(): string {
+    const q = this.quote();
+    if (q?.status !== 'draft') return '';
+    if (!q.costing) return 'Configure the job costing before saving or issuing.';
+    try {
+      calculateCosting(q.costing);
+      return '';
+    } catch (e) {
+      return (e as Error).message;
+    }
   }
-
-  protected removeItem(index: number): void {
-    this.items.update((list) => list.filter((_, i) => i !== index));
+  protected costResult(): CostResult | null {
+    const q = this.quote();
+    if (q?.status !== 'draft' || !q.costing) return null;
+    try {
+      return calculateCosting(q.costing);
+    } catch {
+      return null;
+    }
+  }
+  protected calculatedItems(): QuoteItem[] {
+    return this.quote()?.status === 'draft' ? (this.costResult()?.items ?? []) : this.items();
   }
 
   /** Writes the header, totals and lines. Returns the saved quote as it should appear on the PDF. */
   private async persist(): Promise<{ quote: Quote; items: QuoteItem[] }> {
     const q = this.quote()!;
+    const error = this.pricingError();
+    if (error) throw new Error(error);
+    if (
+      !q.proposal?.title.trim() ||
+      !Number.isFinite(q.proposal.advance_percent) ||
+      q.proposal.advance_percent < 0 ||
+      q.proposal.advance_percent > 100
+    )
+      throw new Error('Enter a proposal title and an advance percentage from 0 to 100.');
+    if (
+      !Number.isFinite(q.gst_percent) ||
+      q.gst_percent < 0 ||
+      !Number.isFinite(q.discount) ||
+      q.discount < 0
+    )
+      throw new Error('Enter a valid non-negative GST percentage and discount.');
     const t = this.totals();
-    const db = this.sb.client;
-    const items = this.items().map((i, sort) => ({
+    const items = this.calculatedItems().map((i, sort) => ({
       quote_id: q.id,
       product_id: i.product_id,
       description: i.description,
@@ -321,6 +379,9 @@ export class QuoteEditor {
       sort,
     }));
     const header = {
+      costing_revision: q.costing_revision ?? 0,
+      costing: q.costing,
+      proposal: q.proposal,
       subtotal: t.subtotal,
       discount: t.discount,
       gst_percent: Number(q.gst_percent) || 0,
@@ -329,10 +390,14 @@ export class QuoteEditor {
       terms: q.terms || null,
       valid_until: q.valid_until || null,
     };
-    await this.sb.run(db.from('quotes').update(header).eq('id', q.id));
-    await this.sb.run(db.from('quote_items').delete().eq('quote_id', q.id));
-    if (items.length) await this.sb.run(db.from('quote_items').insert(items));
-    return { quote: { ...q, ...header }, items };
+    const saved = await this.sb.run<Quote>(
+      this.sb.client
+        .rpc('save_quote_costing', { p_quote_id: q.id, p_header: header, p_items: items })
+        .single(),
+    );
+    this.quote.set({ ...saved, quote_items: items });
+    this.items.set(items);
+    return { quote: saved, items };
   }
 
   protected async save(): Promise<void> {
@@ -341,6 +406,8 @@ export class QuoteEditor {
       await this.persist();
       this.sb.info('Draft saved');
       await this.load();
+    } catch (e) {
+      this.sb.error((e as Error).message);
     } finally {
       this.busy.set(false);
     }
@@ -350,7 +417,9 @@ export class QuoteEditor {
     const project = this.project();
     const settings = this.settings();
     if (!project?.customers || !settings) throw new Error('Still loading; try again in a moment.');
-    return pdfBlob(quoteDocument(settings, project, project.customers, quote, items));
+    return pdfBlob(
+      quoteDocument(settings, project, project.customers, quote, items, await proposalLogo()),
+    );
   }
 
   protected async download(): Promise<void> {
@@ -369,8 +438,8 @@ export class QuoteEditor {
 
   /** Saves, stores the PDF and marks the quote as sent so it can be shared. */
   protected async issue(): Promise<void> {
-    if (!this.items().length) {
-      this.sb.error('Add at least one line before issuing the quote.');
+    if (!this.calculatedItems().length) {
+      this.sb.error(this.pricingError() || 'Complete the costing before issuing the quote.');
       return;
     }
     this.busy.set(true);
@@ -387,7 +456,11 @@ export class QuoteEditor {
         this.sb.client
           .from('quotes')
           .update({ status: 'sent', pdf_path: path, ...share })
-          .eq('id', quote.id),
+          .eq('id', quote.id)
+          .eq('status', 'draft')
+          .eq('costing_revision', quote.costing_revision!)
+          .select('id')
+          .single(),
       );
       this.sb.info('Quote issued. Send it to the customer with the buttons above.');
       await this.load();

@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm test -- --watch=false
       - run: npm run test:user-access
+      - run: npm run test:quote-costing
       - run: npm run build
       - run: npm run check:pwa
       # GitHub Pages serves 404.html for unknown paths; a copy of index.html

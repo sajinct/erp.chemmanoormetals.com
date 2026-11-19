@@ -22,7 +22,9 @@ import {
 import { Supabase } from '../../core/supabase';
 import { Attachments } from '../../shared/attachments';
 import { addDays, fillTemplate, mailLink, money, today, waLink } from '../../shared/messaging';
-import { billingQty, quoteTotals, round2 } from '../../shared/quote-calc';
+import { quoteTotals } from '../../shared/quote-calc';
+import { newCosting, calculateCosting } from '../../shared/quote-costing';
+import { newProposal, proposalTerms } from '../../shared/proposal';
 import { UI } from '../../shared/ui';
 import { PaymentDialog, PaymentDialogData } from '../payments/payment-dialog';
 
@@ -454,50 +456,32 @@ export class ProjectDetail {
     }
   }
 
-  /** Starts a draft quote with one line per measured opening, priced from the rate list. */
+  /** Starts a draft with a measurement snapshot and cost-build pricing. */
   protected async newQuote(p: Project): Promise<void> {
     const m = this.finalM();
     const s = this.settings();
     if (!m || !s) return;
     this.busy.set(true);
     try {
-      const unit = labelOf(MEASURE_UNITS, m.unit).toLowerCase();
-      const lines = (m.measurement_items ?? [])
-        .slice()
-        .sort((a, b) => a.sort - b.sort)
-        .map((i, sort) => {
-          const product = this.products().find((x) => x.id === i.product_id);
-          const productUnit = product?.unit ?? 'nos';
-          const qty = billingQty(i, m.unit, productUnit);
-          const rate = product?.rate ?? 0;
-          const size = `${i.width} x ${i.height} ${unit}` + (i.qty > 1 ? ` x ${i.qty} nos` : '');
-          const description = [product?.name, i.position, size, i.operation, i.material, i.finish]
-            .filter(Boolean)
-            .join(', ');
-          return {
-            product_id: i.product_id,
-            description,
-            qty,
-            unit: productUnit,
-            rate,
-            amount: round2(qty * rate),
-            sort,
-          };
-        });
+      const perforated = p.interest === 'perforated';
+      const costing = newCosting(m, perforated);
+      const lines = perforated ? calculateCosting(costing).items : [];
       const gst = 18;
       const totals = quoteTotals(lines, 0, gst);
       const quote = await this.sb.run<Quote>(
         this.sb.client
           .from('quotes')
           .insert({
+            costing,
+            proposal: newProposal(perforated),
             project_id: p.id,
             measurement_id: m.id,
             subtotal: totals.subtotal,
             gst_percent: gst,
             gst_amount: totals.gst_amount,
             total: totals.total,
-            terms: s.quote_terms,
-            valid_until: addDays(today(), s.quote_validity_days),
+            terms: proposalTerms(s.quote_terms),
+            valid_until: addDays(today(), s.quote_validity_days || 3),
           })
           .select()
           .single(),
@@ -510,6 +494,8 @@ export class ProjectDetail {
         );
       }
       await this.router.navigate(['/projects', p.id, 'quotes', quote.id]);
+    } catch (e) {
+      this.sb.error((e as Error).message);
     } finally {
       this.busy.set(false);
     }

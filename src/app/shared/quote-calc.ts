@@ -1,6 +1,6 @@
 export const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
 
-const PER_FOOT: Record<string, number> = { ft: 1, in: 12, cm: 30.48, mm: 304.8 };
+const PER_FOOT: Record<string, number> = { ft: 1, in: 12, cm: 30.48, mm: 304.8, m: 0.3048 };
 
 /** Converts a length in the measurement's unit to feet. */
 export function toFeet(value: number, unit: string): number {

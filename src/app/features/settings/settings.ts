@@ -122,7 +122,7 @@ export class SettingsPage {
         .from('settings')
         .update({
           ...fields,
-          quote_validity_days: Math.max(1, Number(s.quote_validity_days) || 15),
+          quote_validity_days: Math.max(1, Number(s.quote_validity_days) || 3),
         })
         .eq('id', id),
     );

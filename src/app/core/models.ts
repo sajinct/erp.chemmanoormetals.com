@@ -1,3 +1,6 @@
+import type { QuoteCosting } from '../shared/quote-costing';
+import type { QuoteProposal } from '../shared/proposal';
+
 export type Role = 'admin' | 'approver' | 'sales' | 'measurement' | 'accounts';
 
 export interface Option {
@@ -60,7 +63,7 @@ export const CATEGORIES = opts({
   service: 'Service',
 });
 export const UNITS = opts({ sqft: 'Sq ft', rft: 'Running ft', nos: 'Nos', lot: 'Lot' });
-export const MEASURE_UNITS = opts({ ft: 'Feet', in: 'Inches', cm: 'cm', mm: 'mm' });
+export const MEASURE_UNITS = opts({ ft: 'Feet', in: 'Inches', cm: 'cm', mm: 'mm', m: 'Metres' });
 export const OPERATIONS = ['Side motor', 'Centre motor', 'Tubular motor', 'Gear', 'Manual'];
 export const PAYMENT_KINDS = opts({
   advance: 'Advance',
@@ -189,6 +192,9 @@ export interface MeasurementItem {
 }
 
 export interface Quote {
+  costing_revision?: number;
+  costing?: QuoteCosting | null;
+  proposal?: QuoteProposal | null;
   id: string;
   quote_no: string;
   project_id: string;
