@@ -24,7 +24,13 @@ import { LeadImportDialog } from './lead-import-dialog';
           </h1>
           <p>Your enquiries, conversations and next opportunities.</p>
         </div>
-        <button mat-stroked-button (click)="export()"><mat-icon>download</mat-icon> Export</button>
+        <button
+          mat-stroked-button
+          (click)="export()"
+          [disabled]="loading() || failed() || exporting()"
+        >
+          <mat-icon>download</mat-icon>{{ exporting() ? 'Exporting�' : 'Export' }}
+        </button>
         @if (canEdit) {
           <button mat-stroked-button (click)="import()"><mat-icon>upload</mat-icon> Import</button>
           <button mat-flat-button (click)="add()"><mat-icon>add</mat-icon> New lead</button>
@@ -175,6 +181,7 @@ export class LeadsList {
   protected readonly leads = signal<Lead[]>([]);
   protected readonly loading = signal(true);
   protected readonly failed = signal(false);
+  protected readonly exporting = signal(false);
   protected readonly search = signal('');
   protected readonly status = signal('');
   protected readonly source = signal('');
@@ -274,24 +281,32 @@ export class LeadsList {
       .subscribe((saved) => saved && this.load());
   }
 
-  protected export(): void {
-    void exportXlsx(
-      `leads-${today()}.xlsx`,
-      [
-        { header: 'Ref', key: 'ref_no' },
-        ...LEAD_COLUMNS,
-        { header: 'Status', key: 'status' },
-        { header: 'Next Follow-up', key: 'next_follow_up' },
-        { header: 'Created', key: 'created' },
-      ],
-      this.shown().map((l) => ({
-        ...l,
-        source: labelOf(SOURCES, l.source),
-        segment: labelOf(SEGMENTS, l.segment),
-        interest: labelOf(INTERESTS, l.interest),
-        status: labelOf(LEAD_STATUSES, l.status),
-        created: l.created_at.slice(0, 10),
-      })),
-    );
+  protected async export(): Promise<void> {
+    if (this.exporting()) return;
+    this.exporting.set(true);
+    try {
+      await exportXlsx(
+        `leads-${today()}.xlsx`,
+        [
+          { header: 'Ref', key: 'ref_no' },
+          ...LEAD_COLUMNS,
+          { header: 'Status', key: 'status' },
+          { header: 'Next Follow-up', key: 'next_follow_up' },
+          { header: 'Created', key: 'created' },
+        ],
+        this.shown().map((l) => ({
+          ...l,
+          source: labelOf(SOURCES, l.source),
+          segment: labelOf(SEGMENTS, l.segment),
+          interest: labelOf(INTERESTS, l.interest),
+          status: labelOf(LEAD_STATUSES, l.status),
+          created: l.created_at.slice(0, 10),
+        })),
+      );
+    } catch {
+      this.sb.error('The Excel export could not be created. Please try again.');
+    } finally {
+      this.exporting.set(false);
+    }
   }
 }

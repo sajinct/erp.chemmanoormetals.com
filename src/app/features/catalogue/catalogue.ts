@@ -315,16 +315,20 @@ export class Catalogue {
       });
   }
 
-  protected export(): void {
-    void exportXlsx(
-      `rate-list-${today()}.xlsx`,
-      PRODUCT_COLUMNS,
-      this.products().map((p) => ({
-        ...p,
-        category: labelOf(CATEGORIES, p.category),
-        unit: labelOf(UNITS, p.unit),
-      })),
-    );
+  protected async export(): Promise<void> {
+    try {
+      await exportXlsx(
+        `rate-list-${today()}.xlsx`,
+        PRODUCT_COLUMNS,
+        this.products().map((p) => ({
+          ...p,
+          category: labelOf(CATEGORIES, p.category),
+          unit: labelOf(UNITS, p.unit),
+        })),
+      );
+    } catch {
+      this.sb.error('The Excel export could not be created. Please try again.');
+    }
   }
 
   protected async pick(event: Event): Promise<void> {

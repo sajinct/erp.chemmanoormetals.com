@@ -3,6 +3,12 @@ import { normalizePhone } from './messaging';
 
 export type Row = Record<string, string>;
 
+/** ExcelJS ships a CommonJS browser bundle, exposed as the import's default. */
+async function createWorkbook() {
+  const { default: ExcelJS } = await import('exceljs');
+  return new ExcelJS.Workbook();
+}
+
 /** "Referred By" -> "referredby", so headers match however they are typed. */
 const keyOf = (header: string): string => header.toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -61,8 +67,7 @@ export async function readFile(file: File): Promise<Row[]> {
   if (file.name.toLowerCase().endsWith('.csv')) {
     return tableToRows(parseCsv(await file.text()));
   }
-  const ExcelJS = await import('exceljs');
-  const workbook = new ExcelJS.Workbook();
+  const workbook = await createWorkbook();
   await workbook.xlsx.load(await file.arrayBuffer());
   const sheet = workbook.worksheets[0];
   const table: string[][] = [];
@@ -80,18 +85,22 @@ export interface Column {
   width?: number;
 }
 
+/** Builds an XLSX file without depending on browser download APIs. */
+export async function createXlsx(columns: Column[], rows: Record<string, unknown>[]) {
+  const workbook = await createWorkbook();
+  const sheet = workbook.addWorksheet('Sheet1');
+  sheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width ?? 18 }));
+  sheet.getRow(1).font = { bold: true };
+  rows.forEach((r) => sheet.addRow(r));
+  return new Uint8Array(await workbook.xlsx.writeBuffer());
+}
+
 export async function exportXlsx(
   filename: string,
   columns: Column[],
   rows: Record<string, unknown>[],
 ): Promise<void> {
-  const ExcelJS = await import('exceljs');
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Sheet1');
-  sheet.columns = columns.map((c) => ({ header: c.header, key: c.key, width: c.width ?? 18 }));
-  sheet.getRow(1).font = { bold: true };
-  rows.forEach((r) => sheet.addRow(r));
-  const buffer = await workbook.xlsx.writeBuffer();
+  const buffer = await createXlsx(columns, rows);
   downloadBlob(
     new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -156,12 +165,17 @@ export const LEAD_COLUMNS: Column[] = [
  * Validates lead rows from a sheet. A row is rejected when the name or phone is
  * missing, or when the phone repeats an existing lead or an earlier row.
  */
-export function checkLeadRows(rows: Row[], existingPhones: Iterable<string>): Checked<ImportedLead>[] {
+export function checkLeadRows(
+  rows: Row[],
+  existingPhones: Iterable<string>,
+): Checked<ImportedLead>[] {
   const seen = new Set(existingPhones);
   return rows.map((row, i) => {
     const errors: string[] = [];
     const name = first(row, 'name', 'customername', 'fullname', 'customer');
-    const phone = normalizePhone(first(row, 'phone', 'mobile', 'phonenumber', 'mobilenumber', 'contact', 'whatsapp'));
+    const phone = normalizePhone(
+      first(row, 'phone', 'mobile', 'phonenumber', 'mobilenumber', 'contact', 'whatsapp'),
+    );
     if (!name) errors.push('Name is missing');
     if (phone.length < 10) errors.push('Phone number is missing or too short');
     else if (seen.has(phone)) errors.push('Duplicate phone number');

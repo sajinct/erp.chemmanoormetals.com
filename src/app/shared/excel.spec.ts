@@ -1,6 +1,66 @@
-import { checkLeadRows, checkProductRows, parseCsv, tableToRows } from './excel';
+import {
+  LEAD_COLUMNS,
+  PRODUCT_COLUMNS,
+  checkLeadRows,
+  checkProductRows,
+  createXlsx,
+  parseCsv,
+  readFile,
+  tableToRows,
+} from './excel';
 
 describe('excel import', () => {
+  it('writes and reads a real lead XLSX with the installed ExcelJS module', async () => {
+    const bytes = await createXlsx(LEAD_COLUMNS, [
+      {
+        name: 'Anu, K',
+        phone: '919747070066',
+        email: 'anu@example.test',
+        source: 'Social media',
+        segment: 'Commercial',
+        interest: 'Gate automation',
+        notes: 'Line 1\nകേരളം',
+      },
+    ]);
+    expect(Array.from(bytes.slice(0, 2))).toEqual([0x50, 0x4b]);
+    const rows = await readFile({
+      name: 'leads.xlsx',
+      arrayBuffer: async () => bytes.buffer,
+    } as File);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      name: 'Anu, K',
+      phone: '919747070066',
+      notes: 'Line 1\nകേരളം',
+    });
+    const checked = checkLeadRows(rows, []);
+    expect(checked[0].errors).toEqual([]);
+    expect(checked[0].value).toMatchObject({
+      source: 'social_media',
+      segment: 'commercial',
+      interest: 'gate',
+    });
+  });
+  it('writes a usable empty template and preserves numeric product rates on round-trip', async () => {
+    const empty = await createXlsx(LEAD_COLUMNS, []);
+    expect(
+      await readFile({ name: 'template.xlsx', arrayBuffer: async () => empty.buffer } as File),
+    ).toEqual([]);
+    const bytes = await createXlsx(PRODUCT_COLUMNS, [
+      {
+        category: 'Shutter',
+        name: 'Sample shutter',
+        unit: 'Sq ft',
+        rate: 1250.75,
+        gst_percent: 18,
+      },
+    ]);
+    const rows = checkProductRows(
+      await readFile({ name: 'rates.xlsx', arrayBuffer: async () => bytes.buffer } as File),
+    );
+    expect(rows[0].errors).toEqual([]);
+    expect(rows[0].value).toMatchObject({ rate: 1250.75, gst_percent: 18, unit: 'sqft' });
+  });
   it('parses CSV with quotes, commas and line breaks in fields', () => {
     expect(parseCsv('Name,Notes\r\n"Anu, K","said ""ok""\nline 2"\n')).toEqual([
       ['Name', 'Notes'],
